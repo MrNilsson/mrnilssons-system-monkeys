@@ -1,6 +1,8 @@
 Copyright 2012 Nils Toedtmann <http://nils.toedtmann.net/>
 
-This file is part of Mr. Nilsson's Little System Monkeys.
+This file is part of Mr. Nilsson's Little System Monkeys:
+
+    <https://github.com/MrNilsson/mrnilssons-system-monkeys>
 
 Mr. Nilsson's Little System Monkeys is free software: you can 
 redistribute it and/or modify it under the terms of the GNU General
