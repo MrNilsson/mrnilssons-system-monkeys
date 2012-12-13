@@ -89,7 +89,7 @@ d-i mirror/http/proxy string
 # Alternatively: by default, the installer uses CC.archive.ubuntu.com where
 # CC is the ISO-3166-2 code for the selected country. You can preseed this
 # so that it does so without asking.
-#d-i mirror/http/mirror select CC.archive.ubuntu.com
+d-i mirror/http/mirror select uk.archive.ubuntu.com
 
 # Suite to install.
 #d-i mirror/suite string squeeze
@@ -471,4 +471,4 @@ d-i finish-install/reboot_in_progress note
 # packages and run commands in the target system.
 #d-i preseed/late_command string apt-install zsh; in-target chsh -s /bin/zsh
 
-d-i preseed/late_command string passwd -u root; mkdir -m 700 /root/.ssh; wget -O /root/.ssh/authorized_keys https://raw.github.com/nilstoedtmann/sshkeys/master/nils.toedtmann.dsa.pub
+d-i preseed/late_command string echo "root:`< /dev/urandom tr -dc _A-Z-a-z-0-9 | head -c30`" | chpasswd ; passwd -u root; mkdir -m 700 /root/.ssh; wget -O /root/.ssh/authorized_keys https://raw.github.com/nilstoedtmann/sshkeys/master/nils.toedtmann.dsa.pub
