@@ -20,7 +20,8 @@ along with Mr. Nilsson's Little System Monkeys. If not, see
 <http://www.gnu.org/licenses/>.
 """
 
-from fabric.api import sudo, run, settings, env
+from fabric.api import sudo, run, settings, env # task
+from fabric.contrib.files import exists, append, sed
 from re import sub
 
 
@@ -57,6 +58,88 @@ def _nish():
     """
   # from fabric.api import env
     return env.shell.replace(' -l', '')
+
+
+from urllib2 import urlopen
+def _load_keyfile(keyfile=''):
+    REMOTE_KEYFILE='https://raw.github.com/nilstoedtmann/sshkeys/master/ssh_keys'
+    
+    if keyfile:
+        f = open( keyfile, 'r' )
+    else:
+        f = urlopen(REMOTE_KEYFILE)
+
+    keys_dict = {}
+    for line in f:
+        key_id = line.split()[2]
+        keys_dict[key_id] = line
+
+    f.close()
+
+    return keys_dict
+
+
+
+def _nilsson_sudo(command, shell=True, pty=True, combine_stderr=True, user=None):
+    '''
+    Uses 'run' instead of 'sudo' if already connect as the target user
+    '''
+    if ( not user and env.user == 'root' ) or user == env.user :
+        return run( command, shell=shell, pty=pty, combine_stderr=combine_stderr)
+    else:
+        return sudo(command, shell=shell, pty=pty, combine_stderr=combine_stderr, user=user)
+    
+
+def _nilsson_append(filename, text, use_sudo=False, partial=False, escape=True):
+    '''
+    Does not use 'sudo' if already connect as root
+    '''
+    if ( env.user == 'root' ):
+        use_sudo=False
+    append(filename, text, use_sudo=use_sudo, partial=partial, escape=escape)
+    
+
+
+
+def ssh_add_public_key(keyid, user='', keyfile=''):
+    keys_dict = _load_keyfile(keyfile=keyfile)
+
+    if isinstance(keyid, list):
+        keyids = keyid
+    else:
+        keyids = [keyid]
+
+    keys_to_append = []
+    for keyid in keyids:
+        matching_key_ids = []
+        for listed_key_id in keys_dict.keys():
+            if keyid in listed_key_id:
+                matching_key_ids.append(listed_key_id)
+
+        if not matching_key_ids:
+            raise Exception('FATAL: Cannot find key with id "%s" in keyfile %s!' % (keyid, keyfile) )
+
+        if len(matching_key_ids) > 1 :
+            raise Exception('FATAL: Found multiple matches for "%s" in keyfile %s: %s' % (keyid, keyfile, ' '.join(matching_key_ids)))
+
+        keys_to_append.append(keys_dict[matching_key_ids[0]].rstrip('\n'))
+
+    if user:
+        userentry = run('grep "^%s:" /etc/passwd' % user)
+        if not userentry:
+            raise Exception('FATAL: user "%s" does not exist on remote system!' % user)
+        homedir = userentry.split(':')[5]
+        ssh_dir = homedir + '/.ssh'
+    else:
+        user = env.user
+        ssh_dir = '.ssh'
+
+    authorized_keys = ssh_dir + '/authorized_keys'
+    _nilsson_sudo('mkdir --parents --mode=700 %s ; touch %s' % (ssh_dir, authorized_keys), user=user )
+    for keystring in keys_to_append:
+        # TODO: NO SUDO NEEDED if we already are target user
+        _nilsson_append(authorized_keys, keystring, use_sudo=True)
+
 
 
 # @task
