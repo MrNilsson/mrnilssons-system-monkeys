@@ -65,8 +65,9 @@ fi
 
 
 if [ "${PTRACE_DISABLED}" = "1" ] ; then
-    sudo true || error "FATAL: Need to enable ptrace, but cannot sudo"
-    sudo sysctl -w kernel.yama.ptrace_scope=0
+    [ "`id -u`" = "0" ] && SUDO="" || SUDO="sudo"
+    ${SUDO} true || error "FATAL: Need to enable ptrace, but cannot sudo"
+    ${SUDO} sysctl -w kernel.yama.ptrace_scope=0
 fi
 
 
@@ -74,5 +75,5 @@ ${REPTYR} ${PID}
 
 # TODO: make sure this runs immediately. And make a trap for it as well.
 if [ "${PTRACE_DISABLED}" = "1" ] ; then
-    sudo sysctl -w kernel.yama.ptrace_scope=1
+    ${SUDO} sysctl -w kernel.yama.ptrace_scope=1
 fi
