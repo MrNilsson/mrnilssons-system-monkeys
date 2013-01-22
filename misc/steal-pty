@@ -32,22 +32,28 @@ set -e
 REPTYR="/usr/bin/reptyr"
 PROCESS=${1}
 
-echoerr() { 
+
+error() { 
     echo "$@" 1>&2; 
     exit 1
 }
 
 
-[ -x ${REPTYR} ] || echoerr 'FATAL: reptyr is not installed. Try "apt-get install reptyr"'
-[ "X${PROCESS}" = "X" ] && echoerr "FATAL: no argument given"
+if [ "X${PROCESS}" = "X" ] ; then
+    echo "Usage: ${0} {PID|PROCESSNAME}"
+    exit 0
+fi
+
+
+[ -x ${REPTYR} ] || error 'FATAL: reptyr is not installed. Try "apt-get install reptyr"'
 
 
 if echo ${PROCESS} | grep -q '^[0-9]*$' ; then 
     PID=${PROCESS}
-    [ -d /proc/${PID} ] || echoerr "FATAL: PID ${PID} does not exist"
+    [ -d /proc/${PID} ] || error "FATAL: PID ${PID} does not exist"
 else
-    PID=`pgrep ${PROCESS}`
-    echo ${PID} | grep -q '^[0-9]*$' || echoerr "FATAL: There is more than one PID with that process name: ${PID}."
+    PID="`pgrep ${PROCESS}`" || error "FATAL: There is no process with that name."
+    echo ${PID} | grep -q '^[0-9]*$' || error "FATAL: There is more than one PID with that process name: ${PID}."
 fi
 
 
@@ -59,7 +65,7 @@ fi
 
 
 if [ "${PTRACE_DISABLED}" = "1" ] ; then
-    sudo true || echoerr "FATAL: Need to enable ptrace, but cannot sudo"
+    sudo true || error "FATAL: Need to enable ptrace, but cannot sudo"
     sudo sysctl -w kernel.yama.ptrace_scope=0
 fi
 
