@@ -1,0 +1,72 @@
+#!/bin/bash
+
+
+# Copyright 2012 Nils Toedtmann <http://nils.toedtmann.net/>
+#
+# This file is part of Mr. Nilsson's Little System Monkeys:
+#
+#     <https://github.com/MrNilsson/mrnilssons-system-monkeys>
+#
+# Mr. Nilsson's Little System Monkeys is free software: you can 
+# redistribute it and/or modify it under the terms of the GNU General
+# Public License as published by the Free Software Foundation, either
+# version 3 of the License, or (at your option) any later version.
+#
+# Mr. Nilsson's Little System Monkeys is distributed in the hope that
+# it will be useful, but WITHOUT ANY WARRANTY; without even the
+# implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+# PURPOSE.  See the GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with Mr. Nilsson's Little System Monkeys. If not, see 
+# <http://www.gnu.org/licenses/>.
+
+
+# This is a helper program for reptyr
+#   http://linux.die.net/man/1/reptyr
+#   https://github.com/nelhage/reptyr
+
+
+set -e
+
+REPTYR="/usr/bin/reptyr"
+PROCESS=${1}
+
+echoerr() { 
+    echo "$@" 1>&2; 
+    exit 1
+}
+
+
+[ -x ${REPTYR} ] || echoerr 'FATAL: reptyr is not installed. Try "apt-get install reptyr"'
+[ "X${PROCESS}" = "X" ] && echoerr "FATAL: no argument given"
+
+
+if echo ${PROCESS} | grep -q '^[0-9]*$' ; then 
+    PID=${PROCESS}
+    [ -d /proc/${PID} ] || echoerr "FATAL: PID ${PID} does not exist"
+else
+    PID=`pgrep ${PROCESS}`
+    echo ${PID} | grep -q '^[0-9]*$' || echoerr "FATAL: There is more than one PID with that process name: ${PID}."
+fi
+
+
+if [ -f /proc/sys/kernel/yama/ptrace_scope ] ; then
+    PTRACE_DISABLED=`cat /proc/sys/kernel/yama/ptrace_scope`
+else
+    PTRACE_DISABLED=0
+fi
+
+
+if [ "${PTRACE_DISABLED}" = "1" ] ; then
+    sudo true || echoerr "FATAL: Need to enable ptrace, but cannot sudo"
+    sudo sysctl -w kernel.yama.ptrace_scope=0
+fi
+
+
+${REPTYR} ${PID}
+
+# TODO: make sure this runs immediately. And make a trap for it as well.
+if [ "${PTRACE_DISABLED}" = "1" ] ; then
+    sudo sysctl -w kernel.yama.ptrace_scope=1
+fi
