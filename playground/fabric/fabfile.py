@@ -84,6 +84,16 @@ def am_not_root():
     return not env.user == 'root'
 
 
+def nilsson_run(command, shell=True, pty=True, combine_stderr=True, use_sudo=False):
+    '''
+    Like 'run()' with additional boolean argument 'use_sudo'
+    '''
+    if use_sudo:
+        return sudo(command, shell=shell, pty=pty, combine_stderr=combine_stderr)
+    else:
+        return run( command, shell=shell, pty=pty, combine_stderr=combine_stderr)
+
+
 def nilsson_sudo(command, shell=True, pty=True, combine_stderr=True, user=None):
     '''
     Uses 'run' instead of 'sudo' if already connect as the target user
@@ -94,6 +104,7 @@ def nilsson_sudo(command, shell=True, pty=True, combine_stderr=True, user=None):
         return sudo(command, shell=shell, pty=pty, combine_stderr=combine_stderr, user=user)
     
 
+_run    = nilsson_run
 _sudo   = nilsson_sudo
 
 
