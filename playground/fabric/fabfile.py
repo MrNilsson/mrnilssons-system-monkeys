@@ -176,6 +176,89 @@ def test_distro_flavour():
     return
 
 
+def allow_sudo_group(group=None, nopasswd=False, force=False, dry_run=True):
+    '''
+    Make sure the given group can sudo any command. If no group is given, the distribution's 
+    default sudo group is used (debian flavour: 'sudo'; redhat flavour: 'wheel')
+
+    If we find any sudo entry for the given group, we dont append our statement, unless 
+    you set 'force=True'
+
+    Use 'dry_run=True' to see what would happen.
+    '''
+
+    FLAVOUR_SUDO_GROUPS = {
+        'redhat' : 'wheel',
+        'debian' : 'sudo'
+    }
+
+    SUDOERS = '/etc/sudoers'
+    SUDOERS_TMP = '%s.new-%s' % (SUDOERS, randint(10000,100000))
+
+    need_sudo = am_not_root()
+
+    if not exists(SUDOERS):
+        raise Exception('FATAL: Could not find %s - is sudo installed?') % SUDOERS
+
+    # Check that current SUDOERS is OK
+    _run('visudo -c', use_sudo=need_sudo)
+
+    if not group :
+        group = FLAVOUR_SUDO_GROUPS.get(distro_flavour())
+    if not group :
+        raise Exception('FATAL: could not determine the linux distribution flavour - Please set a group')
+
+    if nopasswd:
+        add_line = '%%%s ALL=(ALL) NOPASSWD:ALL' % group
+    else:
+        add_line = '%%%s ALL=(ALL) ALL' % group
+
+    print 'INFO: Statement to be added to %s:' % SUDOERS
+    print '      >>> %s <<<' % add_line
+
+    # Make idem potent
+    if contains(SUDOERS, add_line, exact=True, use_sudo=need_sudo):
+        print 'INFO: Statement already in %s, nothing to do.' % SUDOERS
+        return
+
+    # See whether there already is some sudo statement for this group
+    match = '^[[:space:]]*%%%s[[:space:]]' % group
+    match_result = contains(SUDOERS, match, use_sudo=need_sudo)
+    if match_result:
+        print 'WARN: We already found a statement for group "%s" in %s:' % (group, SUDOERS)
+        print '      >>> %s <<<' % match_result
+
+        if not force:
+            print 'WARN: Aborting. Set "force=True" if you want to append our statement anyway'
+            return
+        else:
+            print 'WARN: Found "force=True", hence appending anyway.'
+    
+    # Work on a copy
+    _run('cp -a %s %s' % (SUDOERS, SUDOERS_TMP), use_sudo=need_sudo)
+    append(SUDOERS_TMP, add_line, use_sudo=need_sudo)
+
+    diff = _run('diff %s %s || true' % (SUDOERS, SUDOERS_TMP), use_sudo=need_sudo)
+    print '============ Begin diff %s =============' % SUDOERS
+    print diff
+    print '============== End diff %s =============' % SUDOERS
+
+    with settings(warn_only=True):
+        if _run('visudo -c -f %s' % SUDOERS_TMP, use_sudo=need_sudo).failed:
+            _run('rm -f %s' % SUDOERS_TMP, use_sudo=need_sudo)
+            raise Exception('FATAL: The new sudoers file we produced had broken syntax! Removed & not proceeding.' )
+
+    if dry_run:
+        print 'WARN: Dry run requested, not activating new sudoers'
+        _run('rm -f %s' % SUDOERS_TMP, use_sudo=need_sudo)
+    else:
+        print 'INFO: Activing new sudoers'
+        _run('mv %s %s' % (SUDOERS_TMP, SUDOERS), use_sudo=need_sudo)
+
+    return
+
+
+# @task
 def dissect_run(command):
     """
     Displays stdout, stderr and exit code of the given command
