@@ -154,6 +154,28 @@ def ssh_add_public_key(keyid, user='', keyfile=''):
         append(authorized_keys, keystring, use_sudo=am_not_root())
 
 
+def distro_flavour():
+    '''
+    Try to determine the linux distribution flavour. So far only supported:
+    * debian (Debian, Ubuntu)
+    * redhat (RHEL, Fedora, CentOS)
+    '''
+    FLAVOUR_FILES = { 
+        'redhat' : '/etc/redhat-release', 
+        'debian' : '/etc/debian_version' 
+    }
+
+    for flavour in FLAVOUR_FILES.keys():
+        if exists(FLAVOUR_FILES[flavour]):
+            return flavour
+    return None
+
+
+def test_distro_flavour():
+    print distro_flavour()
+    return
+
+
 def dissect_run(command):
     """
     Displays stdout, stderr and exit code of the given command
