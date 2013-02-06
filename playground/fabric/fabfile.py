@@ -81,6 +81,9 @@ def _load_keyfile(keyfile=''):
 
 
 def am_not_root():
+    '''
+    Returns "False" if the fabric user "env.user" is "root", and True otherwise.
+    '''
     return not env.user == 'root'
 
 
@@ -172,6 +175,9 @@ def distro_flavour():
 
 
 def test_distro_flavour():
+    '''
+    Testing distro_flavour()
+    '''
     print distro_flavour()
     return
 
