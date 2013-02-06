@@ -182,6 +182,51 @@ def test_distro_flavour():
     return
 
 
+def add_posix_group(group):
+    '''
+    Add new Linux group
+    '''
+    pass
+
+
+DEFAULT_SHELL = '/bin/bash'
+
+def add_posix_user(username, home=None, create_home=True, group=None, groups=None, system=False, shell=DEFAULT_SHELL):
+    '''
+    Add new Linux group
+    TODO: Have option to push skeleton
+    '''
+    pass
+
+
+def set_default_shell(shell=DEFAULT_SHELL):
+    '''
+    Set the default shell for new users. See DEFAULT_SHELL for its own default value.
+    '''
+    pass
+
+
+def set_password(password=None, user=None, unlock=True)
+    '''
+    Set password of user and unlock the user. If no password is supplied, a random one is generated and returned.
+    '''
+    pass
+
+
+def lock_user(user)
+    '''
+    Lock a user
+    '''
+    pass
+
+
+def unlock_user(user)
+    '''
+    Unlock a user
+    '''
+    pass
+
+
 def allow_sudo_group(group=None, nopasswd=False, force=False, dry_run=True):
     '''
     Make sure the given group can sudo any command. If no group is given, the distribution's 
