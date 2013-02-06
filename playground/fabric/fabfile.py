@@ -21,9 +21,10 @@ along with Mr. Nilsson's Little System Monkeys. If not, see
 """
 
 from fabric.api import sudo, run, settings, env # task
-from fabric.contrib.files import exists, append, sed
+from fabric.contrib.files import exists, append, sed, contains
 from re import sub
-
+from random import randint
+from urllib2 import urlopen
 
 # @task
 def system_info() :
@@ -60,7 +61,6 @@ def _nish():
     return env.shell.replace(' -l', '')
 
 
-from urllib2 import urlopen
 def _load_keyfile(keyfile=''):
     REMOTE_KEYFILE='https://raw.github.com/nilstoedtmann/sshkeys/master/ssh_keys'
     
@@ -80,7 +80,11 @@ def _load_keyfile(keyfile=''):
 
 
 
-def _nilsson_sudo(command, shell=True, pty=True, combine_stderr=True, user=None):
+def am_not_root():
+    return not env.user == 'root'
+
+
+def nilsson_sudo(command, shell=True, pty=True, combine_stderr=True, user=None):
     '''
     Uses 'run' instead of 'sudo' if already connect as the target user
     '''
@@ -90,18 +94,16 @@ def _nilsson_sudo(command, shell=True, pty=True, combine_stderr=True, user=None)
         return sudo(command, shell=shell, pty=pty, combine_stderr=combine_stderr, user=user)
     
 
-def _nilsson_append(filename, text, use_sudo=False, partial=False, escape=True):
-    '''
-    Does not use 'sudo' if already connect as root
-    '''
-    if ( env.user == 'root' ):
-        use_sudo=False
-    append(filename, text, use_sudo=use_sudo, partial=partial, escape=escape)
-    
+_sudo   = nilsson_sudo
 
 
 
 def ssh_add_public_key(keyid, user='', keyfile=''):
+    '''
+    Append the public ssh key with the given key id to a user's 
+    .ssh/authorized_keys file. If no keyfile is give, the default one is 
+    used, see REMOTE_KEYFILE in _load_keyfile()
+    '''
     keys_dict = _load_keyfile(keyfile=keyfile)
 
     if isinstance(keyid, list):
@@ -135,14 +137,12 @@ def ssh_add_public_key(keyid, user='', keyfile=''):
         ssh_dir = '.ssh'
 
     authorized_keys = ssh_dir + '/authorized_keys'
-    _nilsson_sudo('mkdir --parents --mode=700 %s ; touch %s' % (ssh_dir, authorized_keys), user=user )
+    _sudo('mkdir --parents --mode=700 %s ; touch %s' % (ssh_dir, authorized_keys), user=user )
     for keystring in keys_to_append:
         # TODO: NO SUDO NEEDED if we already are target user
-        _nilsson_append(authorized_keys, keystring, use_sudo=True)
+        append(authorized_keys, keystring, use_sudo=am_not_root())
 
 
-
-# @task
 def dissect_run(command):
     """
     Displays stdout, stderr and exit code of the given command
