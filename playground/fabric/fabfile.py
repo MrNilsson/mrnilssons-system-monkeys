@@ -23,8 +23,50 @@ along with Mr. Nilsson's Little System Monkeys. If not, see
 from fabric.api import sudo, run, settings, env # task
 from fabric.contrib.files import exists, append, sed, contains
 from re import sub
-from random import randint
+from random import randint, choice
 from urllib2 import urlopen
+
+
+# Some global definitions
+def _NILSSON_FLAVOUR_SUDO_GROUPS():
+    return {
+        'redhat' : 'wheel',
+        'debian' : 'sudo' 
+        }
+
+
+def _NILSSON_DEFAULT_SHELL():
+    return '/bin/bash'
+
+
+def _boolify(var):
+    '''
+    Convert any type to boolean. Just like bool(), except that the strings 
+    'False' and 'None' in any capitalisation return the bool False.
+    '''
+    if type(var) is str: 
+        return not (var.lower() in ['', 'false', 'none'])
+    return bool(var)
+
+
+def _listify(var, separator='+'):
+    '''
+    If a variable is a string, convert it to a list. Otherwise leave it as it is.
+    Allows to enter lists as 'fab' arguments. Default separator is the "+"
+    One should not use ',' or ':' as separator (used by fabric). Make sure you
+    escape if you use seperators like ';' or '|'.
+    '''
+    if type(var) is str:
+        return var.split(separator)
+    return var
+
+
+def test_listify(s):
+    '''
+    Test _listify()
+    '''
+    print _listify(s)
+
 
 # @task
 def system_info() :
@@ -151,7 +193,7 @@ def ssh_add_public_key(keyid, user='', keyfile=''):
         ssh_dir = '.ssh'
 
     authorized_keys = ssh_dir + '/authorized_keys'
-    _sudo('mkdir --parents --mode=700 %s ; touch %s' % (ssh_dir, authorized_keys), user=user )
+    _run('mkdir --parents --mode=700 %s ; touch %s' % (ssh_dir, authorized_keys), user=user, use_sudo=am_not_root() )
     for keystring in keys_to_append:
         # TODO: NO SUDO NEEDED if we already are target user
         append(authorized_keys, keystring, use_sudo=am_not_root())
@@ -182,52 +224,136 @@ def test_distro_flavour():
     return
 
 
-def add_posix_group(group):
+
+def add_posix_group(group, system=False):
     '''
     Add new Linux group
     '''
-    pass
+    GROUPADD_OPTIONS = ''
+    if system:
+        GROUPADD_OPTIONS += ' --system'
+    return _run('groupadd %s %s' % (GROUPADD_OPTIONS, group), use_sudo=am_not_root())
 
 
-DEFAULT_SHELL = '/bin/bash'
-
-def add_posix_user(username, home=None, create_home=True, group=None, groups=None, system=False, shell=DEFAULT_SHELL):
+def set_default_shell(shell=_NILSSON_DEFAULT_SHELL()):
     '''
-    Add new Linux group
-    TODO: Have option to push skeleton
-    '''
-    pass
-
-
-def set_default_shell(shell=DEFAULT_SHELL):
-    '''
-    Set the default shell for new users. See DEFAULT_SHELL for its own default value.
+    Set the default shell for new users. See _NILSSON_DEFAULT_SHELL() for its own default value.
     '''
     pass
 
 
-def set_password(password=None, user=None, unlock=True)
+# Stolen from http://stackoverflow.com/questions/101362/how-do-you-generate-passwords
+# TODO: Make sure this uses strong randomness 
+PASSWORD_LENGTH = 24
+PASSWORD_CHARS = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+def generate_password(length=PASSWORD_LENGTH, chars=PASSWORD_CHARS):
+    return ''.join([choice(chars) for i in range(length)])
+
+
+def set_password(username, password=None, unlock=True):
     '''
     Set password of user and unlock the user. If no password is supplied, a random one is generated and returned.
     '''
-    pass
+
+    if password:
+        return_password = None
+    else:
+        password = generate_password()
+        return_password = password
+
+    _run('echo "%s:%s" | chpasswd' % (username, password) , use_sudo=am_not_root())
+
+    if unlock:
+        unlock_user(username=username)
+
+    return return_password
 
 
-def lock_user(user)
+def lock_user(username):
     '''
     Lock a user
     '''
-    pass
+    return _run('passwd -l %s' % username, use_sudo=am_not_root())
 
 
-def unlock_user(user)
+def unlock_user(username):
     '''
     Unlock a user
     '''
-    pass
+    return _run('passwd -u %s' % username, use_sudo=am_not_root())
 
 
-def allow_sudo_group(group=None, nopasswd=False, force=False, dry_run=True):
+def add_posix_user(
+    username, 
+    comment='', 
+    primary_group=None, 
+    supplementary_groups=[], 
+    shell=_NILSSON_DEFAULT_SHELL(),
+    home=None, 
+    create_home=True, 
+    system=False, 
+    sudo=False, 
+    password=None, 
+    create_password=True):
+    '''
+    Add new Linux user. If no "password" is supplied, a random password is 
+    set and returned and the user is unlocked, unless "create_password" is
+    set to False.
+
+    Optional options and their defaults: 
+        comment='', 
+        primary_group=None, 
+        supplementary_groups=[], 
+        shell=_NILSSON_DEFAULT_SHELL(),
+        home=None, 
+        create_home=True, 
+        system=False, 
+        sudo=False, 
+        password=None, 
+        create_password=True
+      
+    TODO: 
+     * Have option to push skeleton
+     * Add expiry date options
+    '''
+
+    supplementary_groups = _listify(supplementary_groups)
+    if sudo:
+        sudo_group = _NILSSON_FLAVOUR_SUDO_GROUPS().get(distro_flavour())
+        if not sudo_group:
+            raise Exception('FATAL: Could not find out distro flavour, hence could not determine the distros sudo group. Please add sudo group manually as additional supplementary group.')
+        supplementary_groups.append(sudo_group)
+
+    USERADD_OPTIONS=''
+    if home:
+        USERADD_OPTIONS += ' --home %s' % home
+    if comment:
+        USERADD_OPTIONS += ' --comment %s' % comment
+    if primary_group:
+        USERADD_OPTIONS += ' --gid %s' % primary_group
+    if supplementary_groups:
+        USERADD_OPTIONS += ' --groups %s' % ','.join(supplementary_groups)
+    create_home = _boolify(create_home)
+    if create_home:
+        USERADD_OPTIONS += ' --create-home'
+    else:
+        USERADD_OPTIONS += ' -M'
+    system = _boolify(system)
+    if system:
+        USERADD_OPTIONS += ' --system'  
+    if shell:
+        USERADD_OPTIONS += ' --shell %s' % shell
+    
+    _run( 'useradd %s %s' % (USERADD_OPTIONS, username), use_sudo=am_not_root())
+
+    create_password = _boolify(create_password)
+    if password or create_password:
+        print 'Setting password ...'
+        return set_password(password=password, username=username)
+        print '... password set.'
+
+
+def allow_sudo_group(group=None, nopasswd=False, force=False, dry_run=False):
     '''
     Make sure the given group can sudo any command. If no group is given, the distribution's 
     default sudo group is used (debian flavour: 'sudo'; redhat flavour: 'wheel')
@@ -237,11 +363,6 @@ def allow_sudo_group(group=None, nopasswd=False, force=False, dry_run=True):
 
     Use 'dry_run=True' to see what would happen.
     '''
-
-    FLAVOUR_SUDO_GROUPS = {
-        'redhat' : 'wheel',
-        'debian' : 'sudo'
-    }
 
     SUDOERS = '/etc/sudoers'
     SUDOERS_TMP = '%s.new-%s' % (SUDOERS, randint(10000,100000))
@@ -255,7 +376,7 @@ def allow_sudo_group(group=None, nopasswd=False, force=False, dry_run=True):
     _run('visudo -c', use_sudo=need_sudo)
 
     if not group :
-        group = FLAVOUR_SUDO_GROUPS.get(distro_flavour())
+        group = _NILSSON_FLAVOUR_SUDO_GROUPS().get(distro_flavour())
     if not group :
         raise Exception('FATAL: could not determine the linux distribution flavour - Please set a group')
 
