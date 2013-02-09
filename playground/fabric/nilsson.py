@@ -193,7 +193,7 @@ def ssh_add_public_key(keyid, user='', keyfile=''):
         ssh_dir = '.ssh'
 
     authorized_keys = ssh_dir + '/authorized_keys'
-    _run('mkdir --parents --mode=700 %s ; touch %s' % (ssh_dir, authorized_keys), user=user, use_sudo=am_not_root() )
+    _sudo('mkdir --parents --mode=700 %s ; touch %s' % (ssh_dir, authorized_keys), user=user )
     for keystring in keys_to_append:
         # TODO: NO SUDO NEEDED if we already are target user
         append(authorized_keys, keystring, use_sudo=am_not_root())
