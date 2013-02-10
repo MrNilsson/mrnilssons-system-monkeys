@@ -224,11 +224,30 @@ def test_distro_flavour():
     return
 
 
+def group_exists(group):
+    '''
+    Check whether a POSIX group exists
+    '''
+    with settings(warn_only=True):
+        return run('grep -q "^%s:" /etc/group' % group).succeeded
+
+
+def test_group_exists(group):
+    '''
+    Check whether a POSIX group exists
+    '''
+    print group_exists(group)
+
 
 def add_posix_group(group, system=False):
     '''
     Add new Linux group
     '''
+
+    if group_exists(group):
+        print 'WARN: Group already exists, nothing to do for me.'
+        return
+
     GROUPADD_OPTIONS = ''
     if system:
         GROUPADD_OPTIONS += ' --system'
