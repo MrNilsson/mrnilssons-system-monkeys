@@ -9,27 +9,29 @@ admin_group='adm'
 
 # ToDo: 
 #   Make dlbootstrap() idempotent. Problem: after being hardened, the root account is unavalable.
-#   set hostname (Default: use env.hostname)
 #   upgrade
 #   install & configure postfix
 #   profiles, e.g. password hash
 #   Copy over user skeletton
+#   in CentOS: install man
 
 
-def dlbootstrap(hostname=''):
-    with settings(user='root'):
-        for key in root_keys:
-            nilsson.ssh_add_public_key(key)
+def dlbootstrap(hostname):
+    if not hostname or hostname == 'None':
+        hostname = env.host
 
-        nilsson.allow_sudo_group()
+    for key in root_keys:
+        nilsson.ssh_add_public_key(key, user='root')
 
-        nilsson.add_posix_group(admin_group) # should already exist
-        nilsson.add_posix_user(admin_user,comment='"Admin user"', primary_group=admin_group, sudo=True)
-        for key in admin_keys:
-            nilsson.ssh_add_public_key(key, user=admin_user)
+    nilsson.allow_sudo_group()
 
-    with settings(user=admin_user):    
+    nilsson.add_posix_group(admin_group) # should already exist
+    nilsson.add_posix_user(admin_user,comment='"Admin user"', primary_group=admin_group, sudo=True)
+    for key in admin_keys:
+        nilsson.ssh_add_public_key(key, user=admin_user)
+
+    with settings(user=admin_user):
+        nilsson.set_hostname(hostname)
         nilsson.harden_sshd()
         nilsson.lock_user('root')
-
 
