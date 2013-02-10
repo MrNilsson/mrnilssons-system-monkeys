@@ -518,6 +518,39 @@ def harden_sshd():
     _run('service %s restart' % servicename, use_sudo=need_sudo)
 
 
+def set_hostname(hostname):
+    # TODO: reload MTA
+
+    if not hostname or hostname == 'None':
+        hostname = env.host
+
+    need_sudo = am_not_root()
+
+    with settings(warn_only=True):
+        hosts_entry = run('grep "^127\.0\.1\.1 " /etc/hosts')
+    line_to_append = '127.0.1.1 %s' % hostname
+    if hosts_entry == line_to_append:
+        pass
+    elif not hosts_entry:
+        # TODO: this should be placed right under the line ^127.0.0.1
+        append('/etc/hosts', '127.0.1.1 %s' % hostname, use_sudo=need_sudo)
+    else:
+        sed('/etc/hosts', '^(127\.0\.1\.1) (.*)$', '\\1 %s \\2' % hostname, use_sudo=need_sudo)
+
+    _run('echo %s > /etc/hostname' % hostname, use_sudo=need_sudo)
+    _run('hostname -F /etc/hostname', use_sudo=need_sudo)
+    if exists('/etc/mailname'):
+        _run('echo %s > /etc/mailname' % hostname, use_sudo=need_sudo)
+    
+    # Restart logging service
+    servicename = 'rsyslog'
+    if exists('/etc/init.d/%s' % servicename):
+        _run('service %s restart' % servicename, use_sudo=need_sudo)
+    else:
+        # CentOS<6 and old Ubuntus and some Debians might not use 'rsyslog'
+        print 'WARN: Could not identify syslogging service. Please restart manually.'
+
+
 # @task
 def dissect_run(command):
     """
