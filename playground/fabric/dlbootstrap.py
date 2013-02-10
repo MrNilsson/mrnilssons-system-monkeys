@@ -8,16 +8,18 @@ admin_user='admin'
 admin_group='adm'
 
 # ToDo: 
-#   set password hash
-#   profiles!
+#   Make dlbootstrap() idempotent. Problem: after being hardened, the root account is unavalable.
+#   set hostname (Default: use env.hostname)
+#   upgrade
+#   install & configure postfix
+#   profiles, e.g. password hash
+#   Copy over user skeletton
 
 
 def dlbootstrap(hostname=''):
     with settings(user='root'):
         for key in root_keys:
             nilsson.ssh_add_public_key(key)
-
-        # TODO: Set hostname. Default: use env.hostname
 
         nilsson.allow_sudo_group()
 
@@ -27,9 +29,7 @@ def dlbootstrap(hostname=''):
             nilsson.ssh_add_public_key(key, user=admin_user)
 
     with settings(user=admin_user):    
-        sudo('id')
- 
-        # TODO ssh: Disable password login, disable root login
+        nilsson.harden_sshd()
+        nilsson.lock_user('root')
 
-        # TODO: rsync skeletton
 
