@@ -473,6 +473,51 @@ def allow_sudo_group(group=None, nopasswd=False, force=False, dry_run=False):
     return
 
 
+# Stolen from myself
+#   https://bitbucket.org/okfn/sysadmin/src/2f318bcc67fa01d78204f12e07f30fa5955a893c/bin/fabfile.py#cl-451
+def harden_sshd():
+    '''
+    Disables root login and password based login via ssh.
+    '''
+    # TODO: 
+    # * Syntax check before restart (sshd -t)
+    # * Revert if success not confirmed after X seconds
+
+    config     = '/etc/ssh/sshd_config'
+    config_tmp = '%s.new-%s' % (config, randint(10000,100000))
+    backup     = '%s.ORIG' % config
+    need_sudo = am_not_root()
+
+    flavour = distro_flavour()
+    if flavour == 'redhat':
+        servicename = 'sshd'
+    elif flavour == 'debian':
+        servicename = 'ssh'
+    else:
+        print 'WARN: Could not determine distro flavour, guessing name of SSH service'
+        servicename = 'ssh'
+
+    _run('cp -a %s %s' % (config, config_tmp), use_sudo=need_sudo)
+
+    sed(config_tmp, '^[ \\t#]*(PermitRootLogin)[ \\t]+[yn][eo].*',        '\\1 no', backup='', use_sudo=need_sudo)
+    sed(config_tmp, '^[ \\t#]*(PasswordAuthentication)[ \\t]+[yn][eo].*', '\\1 no', backup='', use_sudo=need_sudo)
+
+    diff = _run('diff %s %s || true' % (config, config_tmp), use_sudo=need_sudo) 
+    print '============ Begin diff %s =============' % config
+    print diff
+    print '============== End diff %s =============' % config
+
+    with settings(warn_only=True):
+        if _run('sshd -t -f %s' % config_tmp, use_sudo=need_sudo).failed:
+            _run('rm -f %s' % config_tmp, use_sudo=need_sudo)
+            raise Exception('FATAL: The new SSH config we produced was broken!' )
+
+    if not exists(backup):
+        _run('mv %s %s' % (config, backup), use_sudo=need_sudo)
+    _run('mv %s %s' % (config_tmp, config), use_sudo=need_sudo)
+    _run('service %s restart' % servicename, use_sudo=need_sudo)
+
+
 # @task
 def dissect_run(command):
     """
