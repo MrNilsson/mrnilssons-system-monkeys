@@ -7,6 +7,10 @@ admin_keys=['nils.toedtmann','joe.short','dan.mauger']
 admin_user='admin'
 admin_group='adm'
 
+# ToDo: 
+#   set password hash
+#   profiles!
+
 
 def dlbootstrap(hostname=''):
     with settings(user='root'):
@@ -17,8 +21,7 @@ def dlbootstrap(hostname=''):
 
         nilsson.allow_sudo_group()
 
-        # TODO: make add_posix_{group,user}() idempotent!
-      # nilsson.add_posix_group(admin_group) # should already exist
+        nilsson.add_posix_group(admin_group) # should already exist
         nilsson.add_posix_user(admin_user,comment='"Admin user"', primary_group=admin_group, sudo=True)
         for key in admin_keys:
             nilsson.ssh_add_public_key(key, user=admin_user)
@@ -26,7 +29,7 @@ def dlbootstrap(hostname=''):
     with settings(user=admin_user):    
         sudo('id')
  
-        # TODO: Disable password login now
+        # TODO ssh: Disable password login, disable root login
 
         # TODO: rsync skeletton
 
