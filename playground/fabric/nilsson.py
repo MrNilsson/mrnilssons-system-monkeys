@@ -258,6 +258,7 @@ def set_password(username, password=None, unlock=True):
     if password:
         return_password = None
     else:
+        print 'INFO: Generating new random password'
         password = generate_password()
         return_password = password
 
@@ -283,6 +284,18 @@ def unlock_user(username):
     return _run('passwd -u %s' % username, use_sudo=am_not_root())
 
 
+def user_exists(username):
+    '''
+    Check whether a user exists.
+    '''
+    with settings(warn_only=True):
+        return run('id %s' % username).succeeded
+
+
+def test_user_exists(username):
+    print user_exists(username)
+
+
 def add_posix_user(
     username, 
     comment='', 
@@ -293,12 +306,10 @@ def add_posix_user(
     create_home=True, 
     system=False, 
     sudo=False, 
-    password=None, 
-    create_password=True):
+    password=None):
     '''
     Add new Linux user. If no "password" is supplied, a random password is 
-    set and returned and the user is unlocked, unless "create_password" is
-    set to False.
+    set and returned. Unlock the user.
 
     Optional options and their defaults: 
         comment='', 
@@ -309,48 +320,61 @@ def add_posix_user(
         create_home=True, 
         system=False, 
         sudo=False, 
-        password=None, 
-        create_password=True
+        password=None
       
     TODO: 
      * Have option to push skeleton
      * Add expiry date options
     '''
 
+    system = _boolify(system)
     supplementary_groups = _listify(supplementary_groups)
+
     if sudo:
         sudo_group = _NILSSON_FLAVOUR_SUDO_GROUPS().get(distro_flavour())
         if not sudo_group:
             raise Exception('FATAL: Could not find out distro flavour, hence could not determine the distros sudo group. Please add sudo group manually as additional supplementary group.')
         supplementary_groups.append(sudo_group)
 
+
+    exists = user_exists(username)
     USERADD_OPTIONS=''
-    if home:
-        USERADD_OPTIONS += ' --home %s' % home
+
+    if exists:
+        print 'INFO: User already exists. Modifying user settings (if any), instead of creating a new user.'
+        command = 'usermod'
+        if home:
+            USERADD_OPTIONS += '--move-home  --home %s' % home
+        if system:
+            print 'WARNING: Only modifying existing owner, cannot change whether or not it is a system user.'
+    else:
+        command = 'useradd'
+        if home:
+            USERADD_OPTIONS += ' --home %s' % home
+        if create_home:
+            USERADD_OPTIONS += ' --create-home'
+        else:
+            USERADD_OPTIONS += ' -M'
+        if system:
+            USERADD_OPTIONS += ' --system'
+
     if comment:
         USERADD_OPTIONS += ' --comment %s' % comment
     if primary_group:
         USERADD_OPTIONS += ' --gid %s' % primary_group
     if supplementary_groups:
         USERADD_OPTIONS += ' --groups %s' % ','.join(supplementary_groups)
-    create_home = _boolify(create_home)
-    if create_home:
-        USERADD_OPTIONS += ' --create-home'
-    else:
-        USERADD_OPTIONS += ' -M'
-    system = _boolify(system)
-    if system:
-        USERADD_OPTIONS += ' --system'  
     if shell:
         USERADD_OPTIONS += ' --shell %s' % shell
     
-    _run( 'useradd %s %s' % (USERADD_OPTIONS, username), use_sudo=am_not_root())
+    if exists and not USERADD_OPTIONS:
+        print 'INFO: user exists and not settings to be modifyed'
+        return
 
-    create_password = _boolify(create_password)
-    if password or create_password:
-        print 'Setting password ...'
+    _run( '%s %s %s' % (command, USERADD_OPTIONS, username), use_sudo=am_not_root())
+
+    if not exists:
         return set_password(password=password, username=username)
-        print '... password set.'
 
 
 def allow_sudo_group(group=None, nopasswd=False, force=False, dry_run=False):
