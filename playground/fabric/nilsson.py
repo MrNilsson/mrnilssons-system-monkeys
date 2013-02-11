@@ -20,7 +20,7 @@ along with Mr. Nilsson's Little System Monkeys. If not, see
 <http://www.gnu.org/licenses/>.
 """
 
-from fabric.api import sudo, run, settings, env # task
+from fabric.api import sudo, run, settings, env, prefix # task
 from fabric.contrib.files import exists, append, sed, contains
 from re import sub
 from random import randint, choice
@@ -58,6 +58,15 @@ def _listify(var, separator='+'):
     '''
     if type(var) is str:
         return var.split(separator)
+    return var
+
+
+def _integrify(var):
+    '''
+    If a variable is a string, convert it to an integer. Otherwise leave it as it is.
+    '''
+    if type(var) is str:
+        return int(var)
     return var
 
 
@@ -480,7 +489,8 @@ def harden_sshd():
     Disables root login and password based login via ssh.
     '''
     # TODO: 
-    # * Syntax check before restart (sshd -t)
+    # * Disallow setting of locale
+    # * UseDNS no
     # * Revert if success not confirmed after X seconds
 
     config     = '/etc/ssh/sshd_config'
@@ -549,6 +559,101 @@ def set_hostname(hostname):
     else:
         # CentOS<6 and old Ubuntus and some Debians might not use 'rsyslog'
         print 'WARN: Could not identify syslogging service. Please restart manually.'
+
+    # TODO: reload MTA
+
+
+MATADATA_MAX_HOURS = 12
+def pkg_update_metadata(max_hours=MATADATA_MAX_HOURS):
+    '''
+    Update the package manager's metadata cache
+    '''
+    # TODO: Determine cache dir from apt/yum config
+    max_hours = _integrify(max_hours)
+
+    need_sudo = am_not_root()
+
+    if distro_flavour() == 'debian':
+        # TODO: Check age of /var/cache/apt/pkgcache.bin
+        metadata='/var/cache/apt/pkgcache.bin'
+        max_min = 60 * max_hours
+        if _run('find %s -cmin +%s' % (metadata, max_min)):
+            _run('apt-get --assume-yes update', use_sudo=need_sudo)
+    elif distro_flavour() == 'redhat':
+        # No point as long as we dont know how to "yum install" without updating the metadata
+        #_run('yum --assumeyes makecache', use_sudo=need_sudo)
+        pass
+    else:
+        raise Exception('FATAL: Could not determine distro flavour (e.g. RedHat- or Debian-style).')
+
+
+def pkg_clear_cache():
+    '''
+    Clear package cache
+    '''
+    need_sudo = am_not_root()
+
+    if distro_flavour() == 'debian':
+        _run('apt-get clean', use_sudo=need_sudo)
+    elif distro_flavour() == 'redhat':
+        _run('yum --assumeyes clean packages', use_sudo=need_sudo)
+    else:
+        raise Exception('FATAL: Could not determine distro flavour (e.g. RedHat- or Debian-style).')
+
+
+def pkg_upgrade(max_hours=MATADATA_MAX_HOURS, interactive=False):
+    '''
+    Update
+    '''
+    max_hours   = _integrify(max_hours)
+    interactive = _boolify(interactive)
+
+    pkg_update_metadata(max_hours)
+
+    need_sudo = am_not_root()
+
+    options = ''
+    prefix_ = ''
+    if distro_flavour() == 'debian':
+        if not interactive:
+            options += ' --assume-yes'
+            prefix_ += ' export DEBIAN_FRONTEND=noninteractive'
+        with prefix(prefix_):
+            _run('apt-get %s upgrade' % options, use_sudo=need_sudo)
+    elif distro_flavour() == 'redhat':
+        if not interactive:
+            options += ' --assumeyes'
+        _run('yum %s update' % options, use_sudo=need_sudo)
+    else:
+        raise Exception('FATAL: Could not determine distro flavour (e.g. RedHat- or Debian-style).')
+
+
+def pkg_install(packages, max_hours=MATADATA_MAX_HOURS, interactive=False):
+    '''
+    Install package(s)
+    '''
+    max_hours   = _integrify(max_hours)
+    interactive = _boolify(interactive)
+    packages    = ' '.join(_listify(packages))
+
+    pkg_update_metadata(max_hours)
+
+    need_sudo = am_not_root()
+
+    options = ''
+    prefix_ = ''
+    if distro_flavour() == 'debian':
+        if not interactive:
+            options += ' --assume-yes'
+            prefix_ += ' export DEBIAN_FRONTEND=noninteractive'
+        with prefix(prefix_):
+            _run('apt-get %s install %s' % (options, packages), use_sudo=need_sudo)
+    elif distro_flavour() == 'redhat':
+        if not interactive:
+            options += ' --assumeyes'
+        _run('yum %s install %s' % (options, packages), use_sudo=need_sudo)
+    else:
+        raise Exception('FATAL: Could not determine distro flavour (e.g. RedHat- or Debian-style).')
 
 
 # @task
