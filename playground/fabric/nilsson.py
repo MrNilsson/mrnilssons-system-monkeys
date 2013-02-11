@@ -603,8 +603,10 @@ def pkg_clear_cache():
 
 def pkg_upgrade(max_hours=MATADATA_MAX_HOURS, interactive=False):
     '''
-    Update
+    Update system
     '''
+    # TODO: no progress bars in yum
+
     max_hours   = _integrify(max_hours)
     interactive = _boolify(interactive)
 
