@@ -1,6 +1,6 @@
 
 import nilsson
-from fabric.api import settings, sudo # run, env, task
+from fabric.api import settings, sudo, env # run,  task
 
 root_keys=['nils.toedtmann']
 admin_keys=['nils.toedtmann','joe.short','dan.mauger']
@@ -8,9 +8,8 @@ admin_user='admin'
 admin_group='adm'
 
 # ToDo: 
-#   Make dlbootstrap() idempotent. Problem: after being hardened, the root account is unavalable.
-#   upgrade
-#   install & configure postfix
+#   Bug: when call as 'admin', the root key is appended again
+#   configure postfix
 #   profiles, e.g. password hash
 #   Copy over user skeletton
 #   in CentOS: install man
@@ -34,4 +33,12 @@ def dlbootstrap(hostname):
         nilsson.set_hostname(hostname)
         nilsson.harden_sshd()
         nilsson.lock_user('root')
+        nilsson.pkg_upgrade()
+
+        packages = ['postfix', 'screen', 'man']
+        if nilsson.distro_flavour() == 'debian':
+            packages.append('bsd-mailx')
+        elif nilsson.distro_flavour() == 'redhat':
+            packages.append('mailx')
+        nilsson.pkg_install(packages)
 
