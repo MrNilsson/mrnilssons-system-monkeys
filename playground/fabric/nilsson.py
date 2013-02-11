@@ -658,6 +658,34 @@ def pkg_install(packages, max_hours=MATADATA_MAX_HOURS, interactive=False):
         raise Exception('FATAL: Could not determine distro flavour (e.g. RedHat- or Debian-style).')
 
 
+def configure_postfix(relayhost=None):
+    '''
+    Configure postfix as outgoing-only MTA on localhost
+    '''
+
+    # TODO: Set root alias!
+
+    postfix_conf='''
+myhostname          = # not set, defaults to hostname then
+mydomain            = $myhostname
+mydestination       = $myhostname, localhost
+inet_interfaces     = localhost
+mynetworks          = 127.0.0.0/8 
+relayhost           =     
+
+alias_maps          = hash:/etc/aliases
+
+mailq_path          = /usr/bin/mailq.postfix
+newaliases_path     = /usr/bin/newaliases.postfix
+sendmail_path       = /usr/sbin/sendmail.postfix
+
+manpage_directory   = /usr/share/man
+readme_directory    = /usr/share/doc/postfix-2.6.6/README_FILES
+sample_directory    = /usr/share/doc/postfix-2.6.6/samples
+    '''
+
+
+
 # @task
 def dissect_run(command):
     """
