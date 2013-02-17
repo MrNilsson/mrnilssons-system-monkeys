@@ -35,7 +35,7 @@ def install_vmhost(vm_ip_prefix=''):
     if not distro_flavour() == 'redhat':
         raise Exception('FATAL: I only support RedHat-style distributions')
 
-    virt_packages = 'bridge-utils libvirt-python libvirt qemu-kvm virt-top tcpdump smartmontools'
+    virt_packages = 'bridge-utils libvirt-python libvirt qemu-kvm virt-top tcpdump smartmontools ntp'
 
     pkg_install(virt_packages.split())
 
@@ -51,7 +51,7 @@ def install_vmhost(vm_ip_prefix=''):
     add_posix_group('libvirt')
     add_posix_user_to_group('admin','libvirt')
 
-    patch_file('/etc/libvirt/libvirtd.conf', 'files/etc/libvirtd.conf.patch', use_sudo=need_sudo, backup='.ORIG')
+    patch_file('/etc/libvirt/libvirtd.conf', 'files/etc/libvirtd.conf.patch', use_sudo=need_sudo)
 
     nilsson_run('service libvirtd start', use_sudo=need_sudo)
 
@@ -68,5 +68,17 @@ def install_vmhost(vm_ip_prefix=''):
         nilsson_run('service libvirtd restart', use_sudo=need_sudo)
         nilsson_run('virsh net-destroy default', use_sudo=need_sudo)
         nilsson_run('virsh net-start default', use_sudo=need_sudo)
+
+    # Configure ntp
+    ntp_config = '/etc/ntp.conf'
+    backup_orig(ntp_config, use_sudo=need_sudo)
+    sed(ntp_config, 'hetzner.com', 'hetzner.de', use_sudo=need_sudo, backup='')
+    if vm_ip_prefix:
+        append(ntp_config, 'restrict %s.0 mask 255.255.255.0' % vm_ip_prefix, use_sudo=need_sudo)
+    #append(ntp_config, '# Bla', use_sudo=need_sudo)
+    nilsson_run('service ntpd restart', use_sudo=need_sudo)
+    
+    
+
 
 
