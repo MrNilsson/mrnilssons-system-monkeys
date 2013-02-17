@@ -22,7 +22,7 @@ along with Mr. Nilsson's Little System Monkeys. If not, see
 
 from nilsson import *
 from fabric.api import sudo, run#, settings, env, prefix, cd, lcd, local # task
-from fabric.contrib.files import exists, comment #, append, sed, contains
+from fabric.contrib.files import exists, comment, put #, append, sed, contains
 #from fabric.contrib.project import rsync_project
 #from re import sub
 from random import randint#, choice
@@ -46,8 +46,9 @@ def prepare_redhat():
     if contains('/proc/self/mounts', 'md3'):
         raise Exception('FATAL: md3 still mounted!')
 
-    run('pvcreate /dev/md3')
-    run('vgcreate vg0 /dev/md3')
+  # run('pvcreate /dev/md3')
+  # run('vgcreate vg0 /dev/md3 ; vgscan')
+  # run('lvcreate --size 50M --name volume01 vg0')  # Only now /dev/vg0 appears
 
 
 
@@ -91,6 +92,16 @@ def install_vmhost(vm_ip_prefix=''):
         nilsson_run('virsh net-destroy default', use_sudo=need_sudo)
         nilsson_run('virsh net-start default', use_sudo=need_sudo)
 
+    if not exists('/etc/libvirt/storage/vg0.xml', use_sudo=need_sudo):
+        nilsson_run('mkdir -p /etc/libvirt/storage', use_sudo=need_sudo)
+        put('files/etc/libvirt/storage/vg0.xml', '/etc/libvirt/storage/vg0.xml', use_sudo=need_sudo)
+        nilsson_run('virsh pool-define /etc/libvirt/storage/vg0.xml', use_sudo=need_sudo)
+        nilsson_run('virsh pool-start vg0', use_sudo=need_sudo)
+        nilsson_run('virsh pool-autostart vg0', use_sudo=need_sudo)
+
+    nilsson_run('wget -c --progress=dot -P /var/lib/libvirt/images/ http://old-releases.ubuntu.com/releases/12.04.1/ubuntu-12.04.1-server-amd64.iso', use_sudo=need_sudo)
+
+
     # Configure ntp
     ntp_config = '/etc/ntp.conf'
     backup_orig(ntp_config, use_sudo=need_sudo)
@@ -100,7 +111,4 @@ def install_vmhost(vm_ip_prefix=''):
     #append(ntp_config, '# Bla', use_sudo=need_sudo)
     nilsson_run('service ntpd restart', use_sudo=need_sudo)
     
-    
-
-
 

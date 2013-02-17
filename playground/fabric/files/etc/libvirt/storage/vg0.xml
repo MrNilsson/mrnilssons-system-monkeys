@@ -1,0 +1,6 @@
+<pool type='logical'>
+  <name>vg0</name>
+  <target>
+    <path>/dev/vg0</path>
+  </target>
+</pool>
