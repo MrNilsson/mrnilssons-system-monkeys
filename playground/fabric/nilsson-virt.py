@@ -30,6 +30,8 @@ from fabric.contrib.files import exists#, append, sed, contains
 
 
 def install_vmhost():
+    need_sudo = am_not_root()
+
     if not distro_flavour() == 'redhat':
         raise Exception('FATAL: I only support RedHat-style distributions')
 
@@ -37,7 +39,16 @@ def install_vmhost():
 
     pkg_install(virt_packages.split())
 
+    deactivate_services = 'iscsi iscsid netfs nfslock rpcbind rpcgssd rpcidmapd'
+    for service in deactivate_services.split():
+        nilsson_run('service %s stop' % service, use_sudo=need_sudo)
+        nilsson_run('chkconfig --level 2345 %s off' % service, use_sudo=need_sudo)
+
     add_posix_group('libvirt')
     add_posix_user_to_group('admin','libvirt')
 
-    patch_file('/etc/libvirt/libvirtd.conf', 'files/etc/libvirtd.conf.patch', use_sudo=True)
+    patch_file('/etc/libvirt/libvirtd.conf', 'files/etc/libvirtd.conf.patch', use_sudo=need_sudo, backup='.ORIG')
+
+    with settings(warn_only=True):
+        nilsson_run('service libvirtd stop', use_sudo=need_sudo)
+    nilsson_run('service libvirtd start', use_sudo=need_sudo)
