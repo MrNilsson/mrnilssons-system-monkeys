@@ -179,6 +179,7 @@ def patch_file(filename, patchfilename, use_sudo=False):
         pkg_install('patch')
 
     remote_patchfilename = '/tmp/' + patchfilename.split('/')[-1] + '.%s' % randint(100000,1000000)
+    rejectname = filename + '.rej'
 
     put(patchfilename, remote_patchfilename)
     # TODO: Raise exception if patch is not applyable (but only warn only if patch had 
@@ -186,7 +187,8 @@ def patch_file(filename, patchfilename, use_sudo=False):
     with settings(warn_only=True):
         _run('patch --forward %s < %s' % (filename, remote_patchfilename), use_sudo=use_sudo)
     _run('rm %s' % remote_patchfilename)
-
+    if exists(rejectname, use_sudo=use_sudo):
+        _run('rm %s' % rejectname, use_sudo=use_sudo)
 
 
 def ssh_add_public_key(keyid, user='', keyfile=''):
