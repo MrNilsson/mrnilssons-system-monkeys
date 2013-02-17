@@ -20,8 +20,9 @@ along with Mr. Nilsson's Little System Monkeys. If not, see
 <http://www.gnu.org/licenses/>.
 """
 
-from fabric.api import sudo, run, settings, env, prefix # task
+from fabric.api import sudo, run, settings, env, prefix, cd, lcd, local # task
 from fabric.contrib.files import exists, append, sed, contains
+from fabric.contrib.project import rsync_project
 from re import sub
 from random import randint, choice
 from urllib2 import urlopen
@@ -683,6 +684,40 @@ manpage_directory   = /usr/share/man
 readme_directory    = /usr/share/doc/postfix-2.6.6/README_FILES
 sample_directory    = /usr/share/doc/postfix-2.6.6/samples
     '''
+
+
+# TODO: This is not yet idempotent!
+def push_skeleton(local_path, remote_path):
+    local_path  = local_path.rstrip('/')  + '/'
+    remote_path = remote_path.rstrip('/') + '/'
+    # rsync_project(remote_dir=remote_path, local_dir=local_path, exclude='*.append')
+    rsync_project(remote_dir=remote_path, local_dir=local_path)
+
+    with lcd(local_path):
+        append_filenames = local('find -type f -name \*.append', capture=True).split()
+        patch_filenames  = local('find -type f -name \*.patch',  capture=True).split()
+
+    if patch_filenames:
+        # TODO: make sue "patch" is installed remotely
+        pass
+
+    with cd(remote_path):
+        for patch_filename in patch_filenames:
+            patch_filename = patch_filename[2:]
+            filename = sub('.patch$', '', patch_filename)
+            # TODO: Make sure 'patch' returns gracefully if file was already patched
+            run('patch %s < %s ; rm %s' % (filename, patch_filename, patch_filename))
+
+        for append_filename in append_filenames:
+            append_filename = append_filename[2:]
+            filename = sub('.append$', '', append_filename)
+            # TODO: Find out whether filename already contains append_filename
+            run('cat %s >> %s ; rm %s' % (append_filename, filename, append_filename))
+
+            # append_text = open(local_path+file_name, 'r').read()
+            #remote_file_name = remote_path + sub('.append$', '', file_name)
+            #remote_file_content = run('cat %s' % remote_file_name).replace('\r\n', '\n')
+
 
 
 
