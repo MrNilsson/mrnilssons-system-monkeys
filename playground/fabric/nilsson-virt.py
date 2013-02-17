@@ -29,7 +29,7 @@ from fabric.contrib.files import exists#, append, sed, contains
 #from urllib2 import urlopen
 
 
-def install_vmhost():
+def install_vmhost(vm_ip_prefix=''):
     need_sudo = am_not_root()
 
     if not distro_flavour() == 'redhat':
@@ -44,11 +44,29 @@ def install_vmhost():
         nilsson_run('service %s stop' % service, use_sudo=need_sudo)
         nilsson_run('chkconfig --level 2345 %s off' % service, use_sudo=need_sudo)
 
+    # Configure libvirtd
+    with settings(warn_only=True):
+        nilsson_run('service libvirtd stop', use_sudo=need_sudo)
+
     add_posix_group('libvirt')
     add_posix_user_to_group('admin','libvirt')
 
     patch_file('/etc/libvirt/libvirtd.conf', 'files/etc/libvirtd.conf.patch', use_sudo=need_sudo, backup='.ORIG')
 
-    with settings(warn_only=True):
-        nilsson_run('service libvirtd stop', use_sudo=need_sudo)
     nilsson_run('service libvirtd start', use_sudo=need_sudo)
+
+    # Set IP address if internal VM network
+    if vm_ip_prefix:
+        vm_ip_prefix_default = '192\.168\.122'
+        vm_network_conf   = '/etc/libvirt/qemu/networks/default.xml'
+        backup = '.ORIG'
+        if exists(vm_network_conf + backup, use_sudo=need_sudo):
+            backup =''
+        sed('/etc/libvirt/qemu/networks/default.xml', '%s\.' % vm_ip_prefix_default, '%s.' % vm_ip_prefix, use_sudo=need_sudo, backup=backup)
+        sed('/etc/libvirt/qemu/networks/default.xml', 'range start="%s\.2"' % vm_ip_prefix, 'range start="%s\.200"' % vm_ip_prefix, use_sudo=need_sudo, backup='')
+
+        nilsson_run('service libvirtd restart', use_sudo=need_sudo)
+        nilsson_run('virsh net-destroy default', use_sudo=need_sudo)
+        nilsson_run('virsh net-start default', use_sudo=need_sudo)
+
+
