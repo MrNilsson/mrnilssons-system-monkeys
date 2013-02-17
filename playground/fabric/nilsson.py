@@ -23,6 +23,7 @@ along with Mr. Nilsson's Little System Monkeys. If not, see
 from fabric.api import sudo, run, settings, env, prefix, cd, lcd, local # task
 from fabric.contrib.files import exists, append, sed, contains
 from fabric.contrib.project import rsync_project
+from fabric.operations import put
 from re import sub
 from random import randint, choice
 from urllib2 import urlopen
@@ -161,6 +162,30 @@ def nilsson_sudo(command, shell=True, pty=True, combine_stderr=True, user=None):
 
 _run    = nilsson_run
 _sudo   = nilsson_sudo
+
+
+def patch_file(filename, patchfilename, use_sudo=False):
+    '''
+    Patch a remote file
+    '''
+
+    patchbin = '/usr/bin/patch'
+    use_sudo = _boolify(use_sudo)
+
+    if not exists(filename, use_sudo=use_sudo):
+        raise Exception('FATAL: Remote file does not exist')
+
+    if not exists(patchbin):
+        pkg_install('patch')
+
+    remote_patchfilename = '/tmp/' + patchfilename.split('/')[-1] + '.%s' % randint(100000,1000000)
+
+    put(patchfilename, remote_patchfilename)
+    # TODO: Raise exception if patch is not applyable (but only warn only if patch had 
+    #       already been applied before)
+    with settings(warn_only=True):
+        _run('patch --forward %s < %s' % (filename, remote_patchfilename), use_sudo=use_sudo)
+    _run('rm %s' % remote_patchfilename)
 
 
 
