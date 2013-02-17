@@ -264,6 +264,12 @@ def add_posix_group(group, system=False):
     return _run('groupadd %s %s' % (GROUPADD_OPTIONS, group), use_sudo=am_not_root())
 
 
+def add_posix_user_to_group(username, group):
+    need_sudo = am_not_root()
+    _run( 'usermod --append --groups  %s %s ' % (group, username), use_sudo=am_not_root())
+
+
+
 def set_default_shell(shell=_NILSSON_DEFAULT_SHELL()):
     '''
     Set the default shell for new users. See _NILSSON_DEFAULT_SHELL() for its own default value.
