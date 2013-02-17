@@ -164,7 +164,7 @@ _run    = nilsson_run
 _sudo   = nilsson_sudo
 
 
-def patch_file(filename, patchfilename, use_sudo=False):
+def patch_file(filename, patchfilename, use_sudo=False, backup=''):
     '''
     Patch a remote file
     '''
@@ -177,6 +177,13 @@ def patch_file(filename, patchfilename, use_sudo=False):
 
     if not exists(patchbin):
         pkg_install('patch')
+
+    if backup:
+        backup_filename = filename + backup
+        if exists(backup_filename, use_sudo=use_sudo):
+            print 'WARN: Backup file %s already exists, not backing up'
+        else:
+            _run('cp -a %s %s' % (filename, backup_filename), use_sudo=use_sudo)
 
     remote_patchfilename = '/tmp/' + patchfilename.split('/')[-1] + '.%s' % randint(100000,1000000)
     rejectname = filename + '.rej'
