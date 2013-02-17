@@ -22,11 +22,33 @@ along with Mr. Nilsson's Little System Monkeys. If not, see
 
 from nilsson import *
 from fabric.api import sudo, run#, settings, env, prefix, cd, lcd, local # task
-from fabric.contrib.files import exists#, append, sed, contains
+from fabric.contrib.files import exists, comment #, append, sed, contains
 #from fabric.contrib.project import rsync_project
 #from re import sub
-#from random import randint, choice
+from random import randint#, choice
 #from urllib2 import urlopen
+
+
+def prepare_redhat():
+    if am_not_root():
+        raise Exception('FATAL: must be root')
+
+    newhome = '/home.new-%s' % randint(100000,1000000)
+    if contains('/proc/self/mounts', 'home'):
+        run('rm -fR %s' % newhome)
+        run('cp -a /home %s' % newhome)
+        run('umount /home')
+        run('rmdir /home')
+        run('mv %s /home' % newhome)
+        backup_orig('/etc/fstab')
+        run('sed -e "s,^\(.* /home .*$\),# \\1," -i /etc/fstab')
+
+    if contains('/proc/self/mounts', 'md3'):
+        raise Exception('FATAL: md3 still mounted!')
+
+    run('pvcreate /dev/md3')
+    run('vgcreate vg0 /dev/md3')
+
 
 
 def install_vmhost(vm_ip_prefix=''):
