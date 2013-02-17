@@ -1,0 +1,5 @@
+
+# if there is an alternative prompt definition, let's use that
+if [ -f ~/.bash_prompt ]; then
+    . ~/.bash_prompt
+fi

@@ -1,0 +1,30 @@
+# If the hostname if not just a domain name (e.g. "example.com" or "example.co.uk"),
+# stript the domain name off the hostname.
+# Shortens e.g. "hostA.subB.example.com" to "hostA.subB"
+
+TLD_EXTRA='in\|id\|il\|uk\|za\|cr\|nz\|jp\|kr\|ck'
+PROMPT_HOSTNAME=`echo ${HOSTNAME} | sed -e "s/\.\(${TLD_EXTRA}\)$//"`
+
+DOTS=${PROMPT_HOSTNAME//[^.]};
+if [ ${#DOTS} -gt 1 ] ; then
+    PROMPT_HOSTNAME=`echo ${PROMPT_HOSTNAME} | sed -e "s/\.[^\.]*\.[^\.]*$//"`
+else
+    PROMPT_HOSTNAME="${HOSTNAME}"
+fi
+
+
+if [ "$PS1" ]; then
+    red="1;31"               # light red 
+    if   [ "`id -u`" -eq 0 ]; then
+        prompt_color="${red}"
+    elif id -G | egrep -q "(^| )4( |$)" ; then
+        # member of group 4 "adm"?
+        prompt_color="1;35"  # light purple
+    else
+        prompt_color="1;34"  # light blue
+    fi
+    PS1="\[\033[${prompt_color}m\]\u\[\033[00m\]@\[\033[${red}m\]${PROMPT_HOSTNAME}\[\033[00m\]:\[\033[${prompt_color}m\]\w\[\033[00m\]\$ "
+
+fi
+
+PROMPT_COMMAND='echo -ne "\033]0;${USER}@${PROMPT_HOSTNAME}: ${PWD/$HOME/~}\007"'

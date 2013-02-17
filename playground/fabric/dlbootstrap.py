@@ -21,7 +21,7 @@ def dlbootstrap(hostname):
 
     for key in root_keys:
         nilsson.ssh_add_public_key(key, user='root')
-    nilsson.push_skeleton(local_path=../home-skel/,remote_path=.)
+    nilsson.push_skeleton(local_path=./files/home-skel/,remote_path=.)
 
     nilsson.allow_sudo_group()
 
@@ -31,7 +31,7 @@ def dlbootstrap(hostname):
         nilsson.ssh_add_public_key(key, user=admin_user)
 
     with settings(user=admin_user):
-        nilsson.push_skeleton(local_path=../home-skel/,remote_path=.)
+        nilsson.push_skeleton(local_path=./files/home-skel/,remote_path=.)
         nilsson.set_hostname(hostname)
         nilsson.harden_sshd()
         nilsson.lock_user('root')
