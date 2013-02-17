@@ -37,10 +37,11 @@ def dlbootstrap(hostname):
         nilsson.lock_user('root')
         nilsson.pkg_upgrade()
 
-        packages = ['postfix', 'screen', 'man']
+        packages = ['postfix', 'screen', 'man', 'vim']
         if nilsson.distro_flavour() == 'debian':
             packages.append('bsd-mailx')
         elif nilsson.distro_flavour() == 'redhat':
             packages.append('mailx')
         nilsson.pkg_install(packages)
 
+        
