@@ -25,31 +25,48 @@ from fabric.api import sudo, run#, settings, env, prefix, cd, lcd, local # task
 from fabric.contrib.files import exists, comment, put #, append, sed, contains
 #from fabric.contrib.project import rsync_project
 #from re import sub
-from random import randint#, choice
+from random import randint #, choice
 #from urllib2 import urlopen
 
 
-def prepare_redhat():
+def move_mount_into_rootfs(mountpoint):
     if am_not_root():
         raise Exception('FATAL: must be root')
 
-    newhome = '/home.new-%s' % randint(100000,1000000)
-    if contains('/proc/self/mounts', 'home'):
-        run('rm -fR %s' % newhome)
-        run('cp -a /home %s' % newhome)
-        run('umount /home')
-        run('rmdir /home')
-        run('mv %s /home' % newhome)
-        backup_orig('/etc/fstab')
-        run('sed -e "s,^\(.* /home .*$\),# \\1," -i /etc/fstab')
+    device = run('egrep "^/dev/.* %s " /proc/self/mounts | cut -d " " -f 1 | cut -d "/" -f 3' % mountpoint)
+    if not device:
+        print 'WARNING: %s seems not to be a mountpoint' % mountpoint
+        return None
 
-    if contains('/proc/self/mounts', 'md3'):
-        raise Exception('FATAL: md3 still mounted!')
+    suffix = '%s' % randint(100000,1000000)
+    new_dir = '%s.new-%s' % (mountpoint, suffix)
+    old_dir = '%s.old-%s' % (mountpoint, suffix)
 
-  # run('pvcreate /dev/md3')
-  # run('vgcreate vg0 /dev/md3 ; vgscan')
-  # run('lvcreate --size 50M --name volume01 vg0')  # Only now /dev/vg0 appears
+    run('rm -fR %s' % new_dir)
+    run('cp -a %s %s' % (mountpoint,new_dir))
+    run('umount %s' % mountpoint)
+    run('mv %s %s' % (mountpoint, old_dir))
+    with settings(warn_only=True):
+        run('rmdir %s' % old_dir)
+    run('mv %s %s' % (new_dir, mountpoint))
+    backup_orig('/etc/fstab')
+    run('sed -e "s,^\(.* %s .*$\),# \\1," -i /etc/fstab' % mountpoint)
 
+    return device
+
+
+def turn_mount_into_volumegroup(mountpoint,vgname):
+    if am_not_root():
+        raise Exception('FATAL: must be root')
+
+    device = move_mount_into_rootfs(mountpoint)
+
+    if contains('/proc/self/mounts', device):
+        raise Exception('FATAL: device still mounted!')
+
+    run('pvcreate /dev/%s' % device)
+    run('vgcreate %s /dev/%s ; vgscan' % (vgname, device))
+    run('lvcreate --size 1M --name %s_testvol %s' % (vgname, vgname))  # Only now the volume group appears
 
 
 def install_vmhost(vm_ip_prefix=''):
