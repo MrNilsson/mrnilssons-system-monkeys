@@ -22,11 +22,12 @@ along with Mr. Nilsson's Little System Monkeys. If not, see
 
 from nilsson import *
 from fabric.api import sudo, run#, settings, env, prefix, cd, lcd, local # task
-from fabric.contrib.files import exists, comment, put #, append, sed, contains
+from fabric.contrib.files import exists, comment, uncomment, put #, append, sed, contains
 #from fabric.contrib.project import rsync_project
 #from re import sub
 from random import randint #, choice
 #from urllib2 import urlopen
+from string import Template
 
 
 def move_mount_into_rootfs(mountpoint):
@@ -95,19 +96,8 @@ def install_vmhost(vm_ip_prefix=''):
 
     nilsson_run('service libvirtd start', use_sudo=need_sudo)
 
-    # Set IP address if internal VM network
-    if vm_ip_prefix:
-        vm_ip_prefix_default = '192\.168\.122'
-        vm_network_conf   = '/etc/libvirt/qemu/networks/default.xml'
-        backup = '.ORIG'
-        if exists(vm_network_conf + backup, use_sudo=need_sudo):
-            backup =''
-        sed('/etc/libvirt/qemu/networks/default.xml', '%s\.' % vm_ip_prefix_default, '%s.' % vm_ip_prefix, use_sudo=need_sudo, backup=backup)
-        sed('/etc/libvirt/qemu/networks/default.xml', 'range start="%s\.2"' % vm_ip_prefix, 'range start="%s\.200"' % vm_ip_prefix, use_sudo=need_sudo, backup='')
-
-        nilsson_run('service libvirtd restart', use_sudo=need_sudo)
-        nilsson_run('virsh net-destroy default', use_sudo=need_sudo)
-        nilsson_run('virsh net-start default', use_sudo=need_sudo)
+    # Configure internal default VM network
+    configure_libvirt_network_default(vm_ip_prefix)
 
     if not exists('/etc/libvirt/storage/vg0.xml', use_sudo=need_sudo):
         nilsson_run('mkdir -p /etc/libvirt/storage', use_sudo=need_sudo)
@@ -129,3 +119,69 @@ def install_vmhost(vm_ip_prefix=''):
     nilsson_run('service ntpd restart', use_sudo=need_sudo)
     
 
+def configure_libvirt_network_default(vm_ip_prefix, mac_prefix = '52:54:00', interface = 'virbr0', name='default'):
+    need_sudo = am_not_root()
+
+    vm_network_conf   = '/etc/libvirt/qemu/networks/%s.xml' % name
+    vm_network_conf_local = '/tmp/libvirt_network_%s' % name
+
+    localfile = open(vm_network_conf_local, 'w')
+
+    localfile.write(generate_libvirt_network_default(vm_ip_prefix, mac_prefix=mac_prefix, interface=interface, name=name))
+    localfile.close()
+
+    backup_orig(vm_network_conf)
+    nilsson_run('virsh net-destroy  %s' % name, use_sudo=need_sudo)
+    nilsson_run('virsh net-undefine %s' % name, use_sudo=need_sudo)
+    nilsson_run('> %s' % vm_network_conf)
+
+    put(vm_network_conf_local, vm_network_conf, use_sudo=need_sudo)
+    nilsson_run('virsh net-define   %s' % vm_network_conf, use_sudo=need_sudo)
+    nilsson_run('virsh net-start    %s' % name, use_sudo=need_sudo)
+
+
+def generate_libvirt_network_default(ip_prefix, mac_prefix = '52:54:00', interface = 'virbr0', name='default'):
+    '''
+    Generate a libvirt/qemu network definition. 
+    Assumes a /24 network with its lowest 100 IP addresses static, thereafter DHCP
+    '''
+    for octet in ip_prefix.split('.')[1:]:
+        mac_prefix += ':%0.2X' % int(octet)
+
+    hostlist=''
+    for octet in range(2,99):
+        mac_octet = '%0.2X' % int(octet)
+        hostlist += "      <host mac='%s:%s' ip='%s.%s' />\n" % (mac_prefix, mac_octet, ip_prefix, octet,)
+    
+    template_libvirt_network_default = Template('''
+<network>
+  <name>$NAME</name>
+  <bridge name='$BRIDGE_DEV' />
+  <mac address='$MAC_PREFIX:01'/>
+  <forward/>
+  <ip address='$IP_PREFIX.1' netmask='255.255.255.0'>
+    <dhcp>
+      <range start='$IP_PREFIX.100' end='$IP_PREFIX.254' />
+$HOSTLIST
+    </dhcp>
+  </ip>
+</network>
+''')
+
+    return template_libvirt_network_default.safe_substitute(
+        NAME       = name,
+        BRIDGE_DEV = interface,
+        MAC_PREFIX = mac_prefix,
+        IP_PREFIX  = ip_prefix,
+        HOSTLIST   = hostlist )
+
+
+def do_bits(ip_prefix):
+    need_sudo = am_not_root()
+    backup_orig('/etc/ethers', use_sudo=need_sudo)
+    backup_orig('/etc/dnsmasq.conf', use_sudo=need_sudo)
+    append('/etc/dnsmasq.conf', 'conf-dir=/etc/dnsmasq.d', use_sudo=need_sudo)
+    append('/etc/dnsmasq.d/read-ethers', 'read-ethers', use_sudo=need_sudo)
+    nilsson_run('service dnsmasq reload', use_sudo=need_sudo)
+
+    
