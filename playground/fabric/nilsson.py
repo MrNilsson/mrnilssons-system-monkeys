@@ -21,7 +21,7 @@ along with Mr. Nilsson's Little System Monkeys. If not, see
 """
 
 from fabric.api import sudo, run, settings, env, prefix, cd, lcd, local # task
-from fabric.contrib.files import exists, append, sed, contains
+from fabric.contrib.files import exists, append, sed, contains, uncomment # put
 from fabric.contrib.project import rsync_project
 from fabric.operations import put
 from re import sub
@@ -776,6 +776,20 @@ def push_skeleton(local_path, remote_path):
             #remote_file_content = run('cat %s' % remote_file_name).replace('\r\n', '\n')
 
 
+def setup_openvpn(ca_cert = '', server_sert = ''):
+    '''
+    Setup a OpenVPN service
+    '''
+    need_sudo = am_not_root()
+
+    # TODO:
+    # Install openvpn
+    # configure 
+    # restart
+
+    # allow forwarding:
+    uncomment('/etc/sysctl.conf', 'net.ipv4.ip_forward=1', backup='.ORIG', use_sudo=need_sudo)
+    _run('/sbin/sysctl -p ', use_sudo=need_sudo)
 
 
 # @task
