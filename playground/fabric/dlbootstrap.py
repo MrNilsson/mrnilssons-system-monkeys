@@ -64,4 +64,7 @@ def dlbootstrap_stage2():
         packages.append('mailx')
     nilsson.pkg_install(packages)
 
+    # Todo: add this route:
+    #    ip route add 172.29.0.0/16 via 172.29.2.3
+
         
