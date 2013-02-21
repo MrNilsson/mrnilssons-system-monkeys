@@ -131,13 +131,14 @@ def configure_libvirt_network_default(vm_ip_prefix, mac_prefix = '52:54:00', int
     localfile.close()
 
     backup_orig(vm_network_conf)
-    nilsson_run('virsh net-destroy  %s' % name, use_sudo=need_sudo)
-    nilsson_run('virsh net-undefine %s' % name, use_sudo=need_sudo)
+    nilsson_run('virsh net-destroy   %s' % name, use_sudo=need_sudo)
+    nilsson_run('virsh net-undefine  %s' % name, use_sudo=need_sudo)
     nilsson_run('> %s' % vm_network_conf)
 
     put(vm_network_conf_local, vm_network_conf, use_sudo=need_sudo)
-    nilsson_run('virsh net-define   %s' % vm_network_conf, use_sudo=need_sudo)
-    nilsson_run('virsh net-start    %s' % name, use_sudo=need_sudo)
+    nilsson_run('virsh net-define    %s' % vm_network_conf, use_sudo=need_sudo)
+    nilsson_run('virsh net-autostart %s' % name, use_sudo=need_sudo)
+    nilsson_run('virsh net-start     %s' % name, use_sudo=need_sudo)
 
 
 def generate_libvirt_network_default(ip_prefix, mac_prefix = '52:54:00', interface = 'virbr0', name='default'):
