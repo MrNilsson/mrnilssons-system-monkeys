@@ -200,6 +200,21 @@ def patch_file(filename, patchfilename, use_sudo=False, backup='.ORIG'):
         _run('rm %s' % rejectname, use_sudo=use_sudo)
 
 
+def regenerate_ssh_host_keys(hostname=None):
+    need_sudo = am_not_root()
+
+    if not hostname:
+        hostname = '`cat /etc/hostname`'
+
+    for key_type in ['rsa', 'dsa', 'ecdsa']:
+        key_file = '/etc/ssh/ssh_host_%s_key' % key_type
+        if exists(key_file):
+            print 'Found %s' % key_file
+            _run('rm %s %s.pub' % (key_file, key_file))
+            _run('ssh-keygen -N "" -t %s -f %s -C %s ' % (key_type, key_file, hostname), use_sudo=need_sudo)
+    _run('service ssh restart', use_sudo=need_sudo)
+
+
 def ssh_add_public_key(keyid, user='', keyfile=''):
     '''
     Append the public ssh key with the given key id to a user's 
