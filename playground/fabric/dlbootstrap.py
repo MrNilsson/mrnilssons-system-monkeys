@@ -1,6 +1,7 @@
 
 import nilsson
 from fabric.api import settings, sudo, env, run # task
+from fabric.contrib.files import append
 
 root_keys=['nils.toedtmann']
 admin_keys=['nils.toedtmann','joe.short','dan.mauger']
@@ -44,14 +45,16 @@ def dlbootstrap_stage1(hostname):
     run('passwd %s' % admin_user)
 
 
-def dlbootstrap_stage2():
+def dlbootstrap_stage2(vpn_server_ip = '172.29.2.3'):
     '''
     Phase II of DL customization. To be executed as 'admin'
     '''
+    need_sudo = nilsson.am_not_root()
+
     nilsson.push_skeleton(local_path='./files/home-skel/', remote_path='.')
 
     # Test we can sudo before we proceed!
-    sudo('id')
+    nilsson.nilsson_run('id', use_sudo = True)
 
     nilsson.harden_sshd()
     nilsson.lock_user('root')
@@ -64,7 +67,8 @@ def dlbootstrap_stage2():
         packages.append('mailx')
     nilsson.pkg_install(packages)
 
-    # Todo: add this route:
-    #    ip route add 172.29.0.0/16 via 172.29.2.3
+    route_command = 'ip route add 172.29.0.0/16 via %s' % vpn_server_ip
+    append('/etc/network/interfaces', '        up   %s' % route_command, use_sudo = need_sudo)
+    nilsson.nilsson_run(route_command, use_sudo = need_sudo)
 
         
