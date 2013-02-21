@@ -21,6 +21,7 @@ along with Mr. Nilsson's Little System Monkeys. If not, see
 """
 
 from nilsson import *
+from nilsson import _boolify
 from fabric.api import sudo, run#, settings, env, prefix, cd, lcd, local # task
 from fabric.contrib.files import exists, comment, uncomment, put #, append, sed, contains
 #from fabric.contrib.project import rsync_project
@@ -76,7 +77,7 @@ def install_vmhost(vm_ip_prefix=''):
     if not distro_flavour() == 'redhat':
         raise Exception('FATAL: I only support RedHat-style distributions')
 
-    virt_packages = 'bridge-utils libvirt-python libvirt qemu-kvm virt-top tcpdump smartmontools ntp'
+    virt_packages = 'bridge-utils libvirt-python libvirt qemu-kvm virt-top python-virtinst tcpdump smartmontools ntp'
 
     pkg_install(virt_packages.split())
 
@@ -175,6 +176,48 @@ $HOSTLIST
         MAC_PREFIX = mac_prefix,
         IP_PREFIX  = ip_prefix,
         HOSTLIST   = hostlist )
+
+
+VM_DEFAULT_SIZE = '10G'
+def clone_vm(name, original = None, size = VM_DEFAULT_SIZE, mac = None, volume_group = 'vg0', snapshot = False):
+    '''
+    Clone a VM. There is a default VM to clone. 
+    '''
+    mac_prefix = '52:54:00:1D:02'
+    if not original:
+        original = 'precise.dc02.dlnode.com'
+
+    volume = '/dev/' + volume_group + '/' + name
+    #if exists(volume):
+    #    raise Exception('FATAL: LVM volume already exists')
+
+    need_sudo = am_not_root()
+    match = 'mac address=.%s:' % mac_prefix
+    if not mac:
+        mac_octets = nilsson_run('grep -hio "%s.." /etc/libvirt/qemu/*.xml | sed -e "s,%s,,i"' % (match, match), use_sudo=need_sudo).split()
+        ip_octets  = [ int(o, 16) for o in mac_octets]
+        ip_octets.sort()
+        highest_ip_octet = ip_octets[-1]
+        if  highest_ip_octet < 254:
+            mac = '%s:%0.2X' % (mac_prefix, highest_ip_octet + 1)
+        else:
+            print 'WARN: Have to assign random MAC'
+
+    snapshot = _boolify(snapshot)
+    if snapshot:
+        print 'WARN: Snapshotting has not yet been tested. Not active.'
+        print 'Snapshotting LVM volume. Volume group=%s, original volume=%s, new volume=%s, size=%s:' % (volume_group, original, name, size)
+        nilsson_run('echo lvcreate  --size %s  --name %s  --snapshot  /dev/%s/%s' % (size, name, volume_group, original), use_sudo=need_sudo)
+
+        print 'Cloning VM configuration %s to %s:' % (original, name) 
+        nilsson_run('echo virt-clone --original=%s --name=%s --mac=%s --file=%s --preserve-data' % (original, name, mac, volume))
+    else:
+        print 'Creating LVM volume. Volume group=%s, Name=%s, size=%s:' % (volume_group, name, size)
+        #nilsson_run('lvcreate  --size %s  --name %s  %s' % (size, name, volume_group), use_sudo=need_sudo)
+
+        print 'Cloning VM %s to %s:' % (original, name) 
+        nilsson_run('virt-clone --original=%s --name=%s --mac=%s --file=%s' % (original, name, mac, volume), use_sudo=need_sudo)
+    
 
 
 def do_bits(ip_prefix):
