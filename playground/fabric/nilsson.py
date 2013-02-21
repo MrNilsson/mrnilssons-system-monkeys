@@ -792,6 +792,21 @@ def setup_openvpn(ca_cert = '', server_sert = ''):
     _run('/sbin/sysctl -p ', use_sudo=need_sudo)
 
 
+def setup_relay_server(allow = '172.29.0.0/16'):
+    '''
+    Setup a SMTP relay with postfix and a DNS resolver
+    '''
+
+    # setup_postfix()
+    # Configure postfix
+    # Differences: no relayhost, interfaces, my_networks
+
+    pkg_install(['bind9'])
+    # configure bind
+    # point /etc/resolv.conf to localhost
+
+
+
 # @task
 def dissect_run(command):
     """
