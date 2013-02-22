@@ -217,7 +217,12 @@ def clone_vm(name, original = None, size = VM_DEFAULT_SIZE, mac = None, volume_g
 
         print 'Cloning VM %s to %s:' % (original, name) 
         nilsson_run('virt-clone --original=%s --name=%s --mac=%s --file=%s' % (original, name, mac, volume), use_sudo=need_sudo)
-    
+
+    print 'INFO: The MAC address of you new VM %s is %s, this might show up here:' % (name, mac)
+    print ' '
+    nilsson_run('grep -i %s /etc/libvirt/qemu/networks/default.xml' % mac , use_sudo=need_sudo)
+    print ' '
+
 
 
 def do_bits(ip_prefix):
