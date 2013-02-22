@@ -64,6 +64,7 @@ def dlbootstrap_stage2(vpn_server_ip = '172.29.2.3', relayhost='relay.dc02.dlnod
     nilsson.pkg_install(packages)
 
     nilsson.setup_postfix(relayhost=relayhost, rootalias=rootalias)
+    nilsson.setup_ufw(allow=['ssh'])
 
     route_command = 'ip route add 172.29.0.0/16 via %s' % vpn_server_ip
     append('/etc/network/interfaces', '        up   %s' % route_command, use_sudo = need_sudo)
@@ -71,5 +72,9 @@ def dlbootstrap_stage2(vpn_server_ip = '172.29.2.3', relayhost='relay.dc02.dlnod
 
        
 def dl_setup_relay(networks = ['172.29.0.0/16']):
+    '''
+    '''
+    # TODO: consider special case where relay is NATed and has to do special settings
     nilsson.setup_postfix(networks = networks, interfaces = 'all')
+    nilsson.configure_ufw(allow = ['smtp'])
 
