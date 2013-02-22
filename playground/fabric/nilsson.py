@@ -810,6 +810,32 @@ def setup_postfix(hostname = '', relayhost = '', networks = '', interfaces = 'lo
     _run('service postfix restart', use_sudo=need_sudo)
 
 
+def setup_ufw(allow=['ssh']):
+    '''
+    Setup ufw firewall
+    '''
+
+    need_sudo = am_not_root()
+
+    allow = _listify(allow)
+    pkg_install('ufw')
+
+    for service in allow:
+        _run('ufw allow %s' % service, use_sudo = need_sudo)
+
+    _run('ufw enable', use_sudo = need_sudo)
+
+
+def configure_ufw(allow = []):
+    '''
+    Configure ufw
+    '''
+    need_sudo = am_not_root()
+
+    allow = _listify(allow)
+    for service in allow:
+        _run('ufw allow %s' % service, use_sudo = need_sudo)
+
 
 # TODO: This is not yet idempotent!
 def push_skeleton(local_path, remote_path):
@@ -858,6 +884,9 @@ def setup_openvpn(ca_cert = '', server_sert = ''):
     # allow forwarding:
     uncomment('/etc/sysctl.conf', 'net.ipv4.ip_forward=1', backup='.ORIG', use_sudo=need_sudo)
     _run('/sbin/sysctl -p ', use_sudo=need_sudo)
+
+    # No firewalling!
+    _run('ufw disable', use_sudo = need_sudo)
 
 
 # @task
