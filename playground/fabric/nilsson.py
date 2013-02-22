@@ -27,6 +27,7 @@ from fabric.operations import put
 from re import sub
 from random import randint, choice
 from urllib2 import urlopen
+from string import Template
 
 
 # Some global definitions
@@ -716,20 +717,53 @@ def pkg_install(packages, max_hours=MATADATA_MAX_HOURS, interactive=False):
         raise Exception('FATAL: Could not determine distro flavour (e.g. RedHat- or Debian-style).')
 
 
-def configure_postfix(relayhost=None):
+def upload_string(filename, s, backup=True, use_sudo=False):
     '''
-    Configure postfix as outgoing-only MTA on localhost
+    Put a string into a remote file
+    '''
+    localfilename = '/tmp/upload-%s-%s' % (filename.split('/')[-1], randint(100000,1000000))
+    localfile     = open(localfilename, 'w')
+    localfile.write(s)
+    localfile.close()
+
+    if backup:
+        backup_orig(filename)
+
+    put(localfilename, filename, use_sudo=use_sudo)
+
+
+
+def set_rootalias(rootalias, reload_portfix=True):
+    '''
+    Set root mail alias
+    '''
+    need_sudo = am_not_root()
+
+    aliases = '/etc/aliases'
+    uncomment(aliases, '^root:', use_sudo=need_sudo, backup='.ORIG')
+    append(aliases, 'root: %s'% rootalias, use_sudo=need_sudo)
+    _run('newaliases', use_sudo=need_sudo)
+    if reload_portfix:
+        _run('service postfix reload', use_sudo=need_sudo)
+
+
+def generate_postfix_conf(myhostname = '', relayhost = '', mynetworks = '', inet_interfaces = 'localhost'):
+    '''
+    Generate basic postfix conf as outgoing-only MTA on localhost
     '''
 
-    # TODO: Set root alias!
+    if myhostname:
+        myhostname = 'myhostname          = %s' % myhostname
+    else:
+        myhostname = '# myhostname        = '
 
-    postfix_conf='''
-myhostname          = # not set, defaults to hostname then
+    template_postfix_maincf = Template('''
+$MYHOSTNAME
 mydomain            = $myhostname
 mydestination       = $myhostname, localhost
-inet_interfaces     = localhost
-mynetworks          = 127.0.0.0/8 
-relayhost           =     
+inet_interfaces     = $INTERFACES
+mynetworks          = 127.0.0.0/8 [::ffff:127.0.0.0]/104 [::1]/128 $MYNETWORKS
+relayhost           = $RELAYHOST
 
 alias_maps          = hash:/etc/aliases
 
@@ -740,7 +774,39 @@ sendmail_path       = /usr/sbin/sendmail.postfix
 manpage_directory   = /usr/share/man
 readme_directory    = /usr/share/doc/postfix-2.6.6/README_FILES
 sample_directory    = /usr/share/doc/postfix-2.6.6/samples
+''')
+
+    mynetworks = _listify(mynetworks)
+    mynetworks = ' '.join(mynetworks)
+
+    return template_postfix_maincf.safe_substitute(
+        MYHOSTNAME = myhostname,
+        INTERFACES = inet_interfaces,
+        RELAYHOST  = relayhost,
+        MYNETWORKS = mynetworks)
+
+
+def setup_postfix(hostname = '', relayhost = '', networks = '', interfaces = 'localhost', rootalias = ''):
     '''
+    Configure postfix as outgoing-only MTA on localhost
+    '''
+    need_sudo = am_not_root()
+
+    packages = ['postfix']
+    if distro_flavour() == 'debian':
+        packages.append('bsd-mailx')
+    elif distro_flavour() == 'redhat':
+        packages.append('mailx')
+    pkg_install(packages)
+
+    postconf = generate_postfix_conf(myhostname=hostname, relayhost=relayhost, mynetworks=networks, inet_interfaces=interfaces)
+
+    upload_string('/etc/postfix/main.cf', postconf, use_sudo=need_sudo)
+
+    set_rootalias(rootalias, reload_portfix=False)
+
+    _run('service postfix restart', use_sudo=need_sudo)
+
 
 
 # TODO: This is not yet idempotent!
@@ -802,6 +868,7 @@ def setup_relay_server(allow = '172.29.0.0/16'):
     # Differences: no relayhost, interfaces, my_networks
 
     pkg_install(['bind9'])
+    _run('true')
     # configure bind
     # point /etc/resolv.conf to localhost
 
