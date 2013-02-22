@@ -69,4 +69,6 @@ def dlbootstrap_stage2(vpn_server_ip = '172.29.2.3', relayhost='relay.dc02.dlnod
     append('/etc/network/interfaces', '        up   %s' % route_command, use_sudo = need_sudo)
     nilsson.nilsson_run(route_command, use_sudo = need_sudo)
 
-        
+       
+def dl_setup_relay(networks = ['172.29.0.0/16']):
+    nilsson.setup_postfix(networks = networks, interfaces = 'all'
