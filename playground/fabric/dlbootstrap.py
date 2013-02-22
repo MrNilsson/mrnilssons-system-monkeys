@@ -16,6 +16,15 @@ admin_group='adm'
 #   install & configure ufw
 
 
+def dlbootstrap_stage0():
+    '''
+    Phase 0 of DL customization. To be run as 'root'
+    '''
+    if nilsson.am_not_root():
+        raise Exception('FATAL: must be root')
+    nilsson.regenerate_ssh_host_keys()
+
+
 def dlbootstrap_stage1(hostname):
     '''
     Phase I of DL customization. To be run as 'root'
@@ -27,7 +36,6 @@ def dlbootstrap_stage1(hostname):
         hostname = env.host
 
     nilsson.set_hostname(hostname)
-    nilsson.regenerate_ssh_host_keys()
 
     # Customize root account
     for key in root_keys:
