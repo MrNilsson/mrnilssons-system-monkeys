@@ -45,7 +45,7 @@ def dlbootstrap_stage1(hostname):
     run('passwd %s' % admin_user)
 
 
-def dlbootstrap_stage2(vpn_server_ip = '172.29.2.3'):
+def dlbootstrap_stage2(vpn_server_ip = '172.29.2.3', relayhost='relay.dc02.dlnode.com', rootalias='hostmaster@demandlogic.co.uk'):
     '''
     Phase II of DL customization. To be executed as 'admin'
     '''
@@ -60,12 +60,10 @@ def dlbootstrap_stage2(vpn_server_ip = '172.29.2.3'):
     nilsson.lock_user('root')
     nilsson.pkg_upgrade()
 
-    packages = ['postfix', 'screen', 'man', 'vim']
-    if nilsson.distro_flavour() == 'debian':
-        packages.append('bsd-mailx')
-    elif nilsson.distro_flavour() == 'redhat':
-        packages.append('mailx')
+    packages = ['screen', 'man', 'vim']
     nilsson.pkg_install(packages)
+
+    nilsson.setup_postfix(relayhost=relayhost, rootalias=rootalias)
 
     route_command = 'ip route add 172.29.0.0/16 via %s' % vpn_server_ip
     append('/etc/network/interfaces', '        up   %s' % route_command, use_sudo = need_sudo)
