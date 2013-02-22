@@ -71,4 +71,5 @@ def dlbootstrap_stage2(vpn_server_ip = '172.29.2.3', relayhost='relay.dc02.dlnod
 
        
 def dl_setup_relay(networks = ['172.29.0.0/16']):
-    nilsson.setup_postfix(networks = networks, interfaces = 'all'
+    nilsson.setup_postfix(networks = networks, interfaces = 'all')
+

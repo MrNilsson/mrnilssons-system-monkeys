@@ -589,6 +589,7 @@ def harden_sshd():
 
 def set_hostname(hostname):
     # TODO: reload MTA
+    # TODO: consider redhat case!
 
     if not hostname or hostname == 'None':
         hostname = env.host
@@ -803,7 +804,8 @@ def setup_postfix(hostname = '', relayhost = '', networks = '', interfaces = 'lo
 
     upload_string('/etc/postfix/main.cf', postconf, use_sudo=need_sudo)
 
-    set_rootalias(rootalias, reload_portfix=False)
+    if rootalias:
+        set_rootalias(rootalias, reload_portfix=False)
 
     _run('service postfix restart', use_sudo=need_sudo)
 
