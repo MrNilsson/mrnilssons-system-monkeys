@@ -46,17 +46,19 @@ def dlbootstrap_stage1(hostname):
     run('passwd %s' % admin_user)
 
 
-def dlbootstrap_stage2(vpn_server_ip = '172.29.2.3', relayhost='relay.dc02.dlnode.com', rootalias='hostmaster@demandlogic.co.uk'):
+def dlbootstrap_stage2(vpn_server_ip = '', relayhost='', rootalias=''):
     '''
     Phase II of DL customization. To be executed as 'admin'
     '''
-    need_sudo = nilsson.am_not_root()
-
-    nilsson.push_skeleton(local_path='./files/home-skel/', remote_path='.')
+    # Since we will disable the root account, we must not be root!
+    if not nilsson.am_not_root():
+        raise Exception('FATAL: must be not root')
 
     # Test we can sudo before we proceed!
-    nilsson.nilsson_run('id', use_sudo = True)
+    need_sudo = True
+    nilsson.nilsson_run('true', use_sudo = need_sudo)
 
+    nilsson.push_skeleton(local_path='./files/home-skel/', remote_path='.')
     nilsson.harden_sshd()
     nilsson.lock_user('root')
     nilsson.pkg_upgrade()
@@ -71,7 +73,15 @@ def dlbootstrap_stage2(vpn_server_ip = '172.29.2.3', relayhost='relay.dc02.dlnod
     append('/etc/network/interfaces', '        up   %s' % route_command, use_sudo = need_sudo)
     nilsson.nilsson_run(route_command, use_sudo = need_sudo)
 
-       
+
+def dlbootstrap_stage(hostname, vpn_server_ip = '172.29.2.3', relayhost='relay.dc02.dlnode.com', rootalias='hostmaster@demandlogic.co.uk'):
+    with settings(user='root'):
+        dlbootstrap_stage1(hostname)
+
+    with settings(user='admin'):
+        dlbootstrap_stage2(vpn_server_ip = vpn_server_ip, relayhost=relayhost, rootalias=rootalias)
+
+
 def dl_setup_relay(networks = ['172.29.0.0/16']):
     '''
     '''
