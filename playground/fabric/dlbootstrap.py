@@ -69,10 +69,6 @@ def dlbootstrap_stage2(vpn_server_ip = '', relayhost='', rootalias=''):
     nilsson.setup_postfix(relayhost=relayhost, rootalias=rootalias)
     nilsson.setup_ufw(allow=['ssh'])
 
-    route_command = 'ip route add 172.29.0.0/16 via %s' % vpn_server_ip
-    append('/etc/network/interfaces', '        up   %s' % route_command, use_sudo = need_sudo)
-    nilsson.nilsson_run(route_command, use_sudo = need_sudo)
-
 
 def dlbootstrap_stage(hostname, vpn_server_ip = '172.29.2.3', relayhost='relay.dc02.dlnode.com', rootalias='hostmaster@demandlogic.co.uk'):
     with settings(user='root'):
