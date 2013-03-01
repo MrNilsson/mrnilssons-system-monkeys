@@ -28,6 +28,7 @@ from re import sub, search
 from random import randint, choice
 from urllib2 import urlopen
 from string import Template
+from socket import gethostbyname
 
 
 # Some global definitions
@@ -225,6 +226,9 @@ def regenerate_ssh_host_keys(hostname=None, remove_old_keys_from_local_known_hos
 
     if remove_old_keys_from_local_known_hosts:
         local('ssh-keygen -R %s' % env.host)
+        if not is_ip_address(env.host):
+            ip_address = gethostbyname(env.host)
+            local('ssh-keygen -R %s' % ip_address)
 
 
 def ssh_add_public_key(keyid, user='', keyfile=''):
