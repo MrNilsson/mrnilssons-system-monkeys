@@ -24,7 +24,7 @@ from fabric.api import sudo, run, settings, env, prefix, cd, lcd, local # task
 from fabric.contrib.files import exists, append, sed, contains, uncomment # put
 from fabric.contrib.project import rsync_project
 from fabric.operations import put, local
-from re import sub
+from re import sub, search
 from random import randint, choice
 from urllib2 import urlopen
 from string import Template
@@ -78,6 +78,14 @@ def test_listify(s):
     Test _listify()
     '''
     print _listify(s)
+
+
+def is_ip_address(s):
+    ip_address_pattern = '^[12]?[0-9]?[0-9]\.[12]?[0-9]?[0-9]\.[12]?[0-9]?[0-9]\.[12]?[0-9]?[0-9]$'
+    if search(ip_address_pattern, s):
+        return True
+    else:
+        return False
 
 
 # @task
