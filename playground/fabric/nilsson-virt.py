@@ -312,11 +312,11 @@ def clone_vm(name, original = None, size = VM_DEFAULT_SIZE, mac = None, ip = Non
         print 'Cloning VM %s to %s:' % (original, name) 
         nilsson_run('virt-clone --original=%s --name=%s %s --file=%s' % (original, name, mac_option, volume), use_sudo=need_sudo)
 
-    print 'INFO: Name of your new machine: %' % name
+    print 'INFO: Name of your new machine: %s' % name
     if mac:
-        print 'INFO: MAC address of your new machine: %' % mac
+        print 'INFO: MAC address of your new machine: %s' % mac
     if ip:
-        print 'INFO: IP address of your new machine: %' % ip
+        print 'INFO: IP address of your new machine: %s' % ip
         return ip
     else:
         return None
