@@ -23,7 +23,7 @@ along with Mr. Nilsson's Little System Monkeys. If not, see
 from fabric.api import sudo, run, settings, env, prefix, cd, lcd, local # task
 from fabric.contrib.files import exists, append, sed, contains, uncomment # put
 from fabric.contrib.project import rsync_project
-from fabric.operations import put
+from fabric.operations import put, local
 from re import sub
 from random import randint, choice
 from urllib2 import urlopen
@@ -201,7 +201,7 @@ def patch_file(filename, patchfilename, use_sudo=False, backup='.ORIG'):
         _run('rm %s' % rejectname, use_sudo=use_sudo)
 
 
-def regenerate_ssh_host_keys(hostname=None):
+def regenerate_ssh_host_keys(hostname=None, remove_old_keys_from_local_known_hosts=True):
     need_sudo = am_not_root()
 
     if not hostname:
@@ -211,9 +211,12 @@ def regenerate_ssh_host_keys(hostname=None):
         key_file = '/etc/ssh/ssh_host_%s_key' % key_type
         if exists(key_file):
             print 'Found %s' % key_file
-            _run('rm %s %s.pub' % (key_file, key_file))
+            _run('rm %s %s.pub' % (key_file, key_file), use_sudo=need_sudo)
             _run('ssh-keygen -N "" -t %s -f %s -C %s ' % (key_type, key_file, hostname), use_sudo=need_sudo)
     _run('service ssh restart', use_sudo=need_sudo)
+
+    if remove_old_keys_from_local_known_hosts:
+        local('ssh-keygen -R %s' % env.host)
 
 
 def ssh_add_public_key(keyid, user='', keyfile=''):
@@ -728,7 +731,7 @@ def upload_string(filename, s, backup=True, use_sudo=False):
     localfile.close()
 
     if backup:
-        backup_orig(filename)
+        backup_orig(filename, use_sudo=use_sudo)
 
     put(localfilename, filename, use_sudo=use_sudo)
 
