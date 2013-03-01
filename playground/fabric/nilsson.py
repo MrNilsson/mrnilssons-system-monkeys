@@ -825,7 +825,7 @@ def setup_postfix(hostname = '', relayhost = '', networks = '', interfaces = 'lo
     _run('service postfix restart', use_sudo=need_sudo)
 
 
-def setup_ufw(allow=['ssh']):
+def setup_ufw(allow=['ssh'], force =  True):
     '''
     Setup ufw firewall
     '''
@@ -838,18 +838,58 @@ def setup_ufw(allow=['ssh']):
     for service in allow:
         _run('ufw allow %s' % service, use_sudo = need_sudo)
 
-    _run('ufw enable', use_sudo = need_sudo)
+    ufw_option = ''
+    if force:
+        ufw_option += ' --force'
+
+    _run('ufw %s enable' % ufw_option, use_sudo = need_sudo)
 
 
-def configure_ufw(allow = []):
+def configure_ufw(allow = [], rules = []):
     '''
     Configure ufw
     '''
     need_sudo = am_not_root()
 
     allow = _listify(allow)
+    rules = _listify(rules)
+
     for service in allow:
         _run('ufw allow %s' % service, use_sudo = need_sudo)
+
+    for rule in rules:
+        _run('ufw %s' % rule, use_sudo = need_sudo)
+
+
+def setup_munin_node(allow=[]):
+    '''
+    Install and configure a munin node. Does not include configuration of the munin server!
+    '''
+
+    '''
+    TODO:
+    * Make sure "host=*" is set
+    * Insert "cidr_allow" at right place
+    * Have a blacklist of unneeded munin plugins, and disable them.
+    * Co-configure munin-server
+    * Make sure munin-node is in runlevel
+    '''
+
+    need_sudo = am_not_root()
+    allow = _listify(allow)
+
+    pkg_install('munin-node')
+
+    conf = '/etc/munin/munin-node.conf'
+    backup_orig(conf, use_sudo = need_sudo)
+
+    for client_ip in allow:
+        if not '/' in client_ip:
+            client_ip += '/32'
+        append(conf, 'cidr_allow %s' % client_ip, use_sudo = need_sudo)
+        configure_ufw(rules = ['allow proto tcp from %s to any port 4949' % client_ip] )
+
+    _run('service munin-node restart', use_sudo = need_sudo)
 
 
 # TODO: This is not yet idempotent!
