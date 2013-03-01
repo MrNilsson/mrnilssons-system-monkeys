@@ -23,7 +23,7 @@ along with Mr. Nilsson's Little System Monkeys. If not, see
 from nilsson import *
 from nilsson import _boolify
 from fabric.api import sudo, run#, settings, env, prefix, cd, lcd, local # task
-from fabric.contrib.files import exists, comment, uncomment, put #, append, sed, contains
+from fabric.contrib.files import exists, comment, uncomment, put, append # sed, contains
 #from fabric.contrib.project import rsync_project
 #from re import sub
 from random import randint #, choice
@@ -71,14 +71,44 @@ def turn_mount_into_volumegroup(mountpoint,vgname):
     run('lvcreate --size 1M --name %s_testvol %s' % (vgname, vgname))  # Only now the volume group appears
 
 
+def setup_vmhost_iptables(vm_ip_prefix=''):
+    need_sudo = am_not_root()
+
+    if not distro_flavour() == 'redhat':
+        raise Exception('FATAL: I only support RedHat-style distributions')
+
+    wide_net= '172.29.0.0/16'
+    vm_net  = vm_ip_prefix + '.0/24'
+    vm_vpn  = vm_ip_prefix + '.3'
+    vm_http = vm_ip_prefix + '.5'
+    external_interface = 'eth0'
+
+    pkg_install('iptables')
+    nilsson_run('service iptables stop', use_sudo=need_sudo)
+    nilsson_run('iptables --table nat --append POSTROUTING --out-interface %s --source %s ! --destination %s --jump MASQUERADE' % (external_interface, wide_net, wide_net), use_sudo=need_sudo)
+    nilsson_run('iptables --table nat --append PREROUTING   --in-interface %s --protocol udp --dport 1194 --jump DNAT --to-destination %s' % (external_interface, vm_vpn),  use_sudo=need_sudo)
+    nilsson_run('iptables --table nat --append PREROUTING   --in-interface %s --protocol tcp --dport   80 --jump DNAT --to-destination %s' % (external_interface, vm_http), use_sudo=need_sudo)
+    nilsson_run('iptables --table nat --append PREROUTING   --in-interface %s --protocol tcp --dport  443 --jump DNAT --to-destination %s' % (external_interface, vm_http), use_sudo=need_sudo)
+    nilsson_run('service iptables save', use_sudo=need_sudo)
+
+    # Set route to internal net to VPN server
+    # TODO: This does actually not work with libvirt :-(
+    route = '%s via %s' % (wide_net, vm_vpn)
+    nilsson_run('ip route add %s' % route, use_sudo=need_sudo)
+    append('/etc/sysconfig/network-scripts/route-virbr0', route, use_sudo=need_sudo)
+    
+
+
 def install_vmhost(vm_ip_prefix=''):
     need_sudo = am_not_root()
 
     if not distro_flavour() == 'redhat':
         raise Exception('FATAL: I only support RedHat-style distributions')
 
-    virt_packages = 'bridge-utils libvirt-python libvirt qemu-kvm virt-top python-virtinst tcpdump smartmontools ntp'
+    # first we need to configure iptables
+    setup_vmhost_iptables(vm_ip_prefix = vm_ip_prefix)
 
+    virt_packages = 'bridge-utils libvirt-python libvirt qemu-kvm virt-top python-virtinst tcpdump smartmontools ntp'
     pkg_install(virt_packages.split())
 
     deactivate_services = 'iscsi iscsid netfs nfslock rpcbind rpcgssd rpcidmapd'
@@ -145,25 +175,25 @@ def configure_libvirt_network_default(vm_ip_prefix, mac_prefix = '52:54:00', int
 def generate_libvirt_network_default(ip_prefix, mac_prefix = '52:54:00', interface = 'virbr0', name='default'):
     '''
     Generate a libvirt/qemu network definition. 
-    Assumes a /24 network with its lowest 100 IP addresses static, thereafter DHCP
+    Assumes a /24 network with its lowest 200 IP addresses static, thereafter DHCP
     '''
     for octet in ip_prefix.split('.')[1:]:
         mac_prefix += ':%0.2X' % int(octet)
 
     hostlist=''
-    for octet in range(2,99):
+    for octet in range(2,199):
         mac_octet = '%0.2X' % int(octet)
         hostlist += "      <host mac='%s:%s' ip='%s.%s' />\n" % (mac_prefix, mac_octet, ip_prefix, octet,)
     
     template_libvirt_network_default = Template('''
 <network>
   <name>$NAME</name>
+  <forward mode='route'/>
   <bridge name='$BRIDGE_DEV' />
   <mac address='$MAC_PREFIX:01'/>
-  <forward/>
   <ip address='$IP_PREFIX.1' netmask='255.255.255.0'>
     <dhcp>
-      <range start='$IP_PREFIX.100' end='$IP_PREFIX.254' />
+      <range start='$IP_PREFIX.200' end='$IP_PREFIX.254' />
 $HOSTLIST
     </dhcp>
   </ip>
@@ -178,30 +208,94 @@ $HOSTLIST
         HOSTLIST   = hostlist )
 
 
+def read_ethers():
+    etc_ethers = run('grep -v ^# /etc/ethers').replace('\r\n', '\n').split('\n')
+    macs = {}
+    ips  = {}
+    for line in etc_ethers:
+        (mac, ip) = line.split()
+        mac = mac.upper()
+        macs[mac] = ip
+        ips[ip] = mac
+    return (macs, ips)
+
+
+def assigned_macs():
+    '''
+    Return list of MAC addresses currently in use by VMs
+    '''
+    # TODO: read properly as XML!
+    need_sudo = am_not_root()
+
+    macs1 = nilsson_run('egrep " *<mac address=" /etc/libvirt/qemu/*.xml | sed -e "s,^.*<mac address=\',," -e "s,\'/>,,"', use_sudo=need_sudo).split()
+    macs2 = nilsson_run("ip link sh | grep ether | awk '{print $2}'", use_sudo=need_sudo).split()
+
+    macs = set([ mac.upper() for mac in macs1 + macs2 ])
+    return macs
+
+
 VM_DEFAULT_SIZE = '10G'
-def clone_vm(name, original = None, size = VM_DEFAULT_SIZE, mac = None, volume_group = 'vg0', snapshot = False):
+def clone_vm(name, original = None, size = VM_DEFAULT_SIZE, mac = None, ip = None, volume_group = 'vg0', snapshot = False):
     '''
-    Clone a VM. There is a default VM to clone. 
+    Clone a VM. There is a default VM to clone.
     '''
-    mac_prefix = '52:54:00:1D:02'
+
+    # TODO: Match ip range
+
+    volume = '/dev/' + volume_group + '/' + name
+    if exists(volume):
+        raise Exception('FATAL: LVM volume already exists')
+
+
+    if ip and mac:
+        raise Exception('FATAL: you cannot set MAC and IP')
+
+    (macs, ips) = read_ethers()
+    macs_in_use = assigned_macs()
+
+    if mac:
+        mac = mac.upper()
+        if mac in macs_in_use:
+            raise Exception('FATAL: that MAC address is already in use by one of our VMs!')
+        if mac in macs:
+            ip = macs[mac]
+        else:
+            print 'WARN: The MAC is not listed in /etc/ethers. I wont have a static IP address'
+
+    elif ip:
+        if not ip in ips:
+            raise Exception('FATAL: IP not found in /etc/ethers')
+        mac = ips[ip]
+        print 'INFO: found MAC %s for IP address %s' % (mac, ip)
+        if mac in macs_in_use:
+            raise Exception('FATAL: that MAC address is already in use by one of our VMs!')
+
+    else:
+        available_macs = macs.keys()
+        available_macs.sort()
+
+        print 'Av1: %s' % available_macs
+        print 'In use: %s' % macs_in_use
+        for used_mac in macs_in_use:
+            if used_mac in available_macs:
+                available_macs.remove(used_mac)
+        print 'Av2: %s' % available_macs
+
+        if available_macs:
+            mac = available_macs[0]
+            ip = macs[mac]
+        else:
+            print 'WARN: All macs from /etc/ethers already in use! Assigning random MAC'
+        
+    if mac:
+        mac_option = '--mac=%s' % mac
+    else:
+        mac_option = ''
+
     if not original:
         original = 'precise.dc02.dlnode.com'
 
-    volume = '/dev/' + volume_group + '/' + name
-    #if exists(volume):
-    #    raise Exception('FATAL: LVM volume already exists')
-
     need_sudo = am_not_root()
-    match = 'mac address=.%s:' % mac_prefix
-    if not mac:
-        mac_octets = nilsson_run('grep -hio "%s.." /etc/libvirt/qemu/*.xml | sed -e "s,%s,,i"' % (match, match), use_sudo=need_sudo).split()
-        ip_octets  = [ int(o, 16) for o in mac_octets]
-        ip_octets.sort()
-        highest_ip_octet = ip_octets[-1]
-        if  highest_ip_octet < 254:
-            mac = '%s:%0.2X' % (mac_prefix, highest_ip_octet + 1)
-        else:
-            print 'WARN: Have to assign random MAC'
 
     snapshot = _boolify(snapshot)
     if snapshot:
@@ -210,19 +304,22 @@ def clone_vm(name, original = None, size = VM_DEFAULT_SIZE, mac = None, volume_g
         nilsson_run('echo lvcreate  --size %s  --name %s  --snapshot  /dev/%s/%s' % (size, name, volume_group, original), use_sudo=need_sudo)
 
         print 'Cloning VM configuration %s to %s:' % (original, name) 
-        nilsson_run('echo virt-clone --original=%s --name=%s --mac=%s --file=%s --preserve-data' % (original, name, mac, volume))
+        nilsson_run('echo virt-clone --original=%s --name=%s %s --file=%s --preserve-data' % (original, name, mac_option, volume))
     else:
         print 'Creating LVM volume. Volume group=%s, Name=%s, size=%s:' % (volume_group, name, size)
         #nilsson_run('lvcreate  --size %s  --name %s  %s' % (size, name, volume_group), use_sudo=need_sudo)
 
         print 'Cloning VM %s to %s:' % (original, name) 
-        nilsson_run('virt-clone --original=%s --name=%s --mac=%s --file=%s' % (original, name, mac, volume), use_sudo=need_sudo)
+        nilsson_run('virt-clone --original=%s --name=%s %s --file=%s' % (original, name, mac_option, volume), use_sudo=need_sudo)
 
-    print 'INFO: The MAC address of you new VM %s is %s, this might show up here:' % (name, mac)
-    print ' '
-    nilsson_run('grep -i %s /etc/libvirt/qemu/networks/default.xml' % mac , use_sudo=need_sudo)
-    print ' '
-
+    print 'INFO: Name of your new machine: %' % name
+    if mac:
+        print 'INFO: MAC address of your new machine: %' % mac
+    if ip:
+        print 'INFO: IP address of your new machine: %' % ip
+        return ip
+    else:
+        return None
 
 
 def do_bits(ip_prefix):
