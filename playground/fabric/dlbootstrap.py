@@ -2,6 +2,7 @@
 import nilsson
 from fabric.api import settings, sudo, env, run # task
 from fabric.contrib.files import append
+from fabric.operations import local
 
 root_keys=['nils.toedtmann']
 admin_keys=['nils.toedtmann','joe.short','dan.mauger']
@@ -16,15 +17,6 @@ admin_group='adm'
 #   install & configure ufw
 
 
-def dlbootstrap_stage0():
-    '''
-    Phase 0 of DL customization. To be run as 'root'
-    '''
-    if nilsson.am_not_root():
-        raise Exception('FATAL: must be root')
-    nilsson.regenerate_ssh_host_keys()
-
-
 def dlbootstrap_stage1(hostname):
     '''
     Phase I of DL customization. To be run as 'root'
@@ -36,6 +28,7 @@ def dlbootstrap_stage1(hostname):
         hostname = env.host
 
     nilsson.set_hostname(hostname)
+    nilsson.regenerate_ssh_host_keys()
 
     # Customize root account
     for key in root_keys:
