@@ -46,7 +46,7 @@ def dlbootstrap_stage1(hostname):
     run('passwd %s' % admin_user)
 
 
-def dlbootstrap_stage2(vpn_server_ip = '', relayhost='', rootalias=''):
+def dlbootstrap_stage2(relayhost='', rootalias=''):
     '''
     Phase II of DL customization. To be executed as 'admin'
     '''
@@ -70,7 +70,7 @@ def dlbootstrap_stage2(vpn_server_ip = '', relayhost='', rootalias=''):
     nilsson.setup_ufw(allow=['ssh'])
 
 
-def dlbootstrap(hostname = None, vpn_server_ip = '172.29.2.3', relayhost='relay.dc02.dlnode.com', rootalias='hostmaster@demandlogic.co.uk'):
+def dlbootstrap(hostname = None, relayhost='relay.dc02.dlnode.com', rootalias='hostmaster@demandlogic.co.uk'):
     if not hostname:
         if nilsson.is_ip_address(env.host):
             raise Exception('FATAL: you must provide a hostname, either with the fabric argument "--host", or as extra keyword argument "hostname="!')
@@ -81,7 +81,7 @@ def dlbootstrap(hostname = None, vpn_server_ip = '172.29.2.3', relayhost='relay.
         dlbootstrap_stage1(hostname)
 
     with settings(user='admin'):
-        dlbootstrap_stage2(vpn_server_ip = vpn_server_ip, relayhost=relayhost, rootalias=rootalias)
+        dlbootstrap_stage2(relayhost=relayhost, rootalias=rootalias)
 
 
 def dl_setup_relay(networks = ['172.29.0.0/16']):
