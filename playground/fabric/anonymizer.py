@@ -30,4 +30,4 @@ def setup_stealth_proxy(name='proxy', realm='Welcome to the proxy', contact='hos
 
     conf = '/etc/cron.daily/squid3-usage'
     put( 'files' + conf, conf, use_sudo=need_sudo)
-
+    nilsson.nilsson_run('chmod +x %s' % conf, use_sudo=need_sudo)
