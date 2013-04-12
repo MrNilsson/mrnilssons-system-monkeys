@@ -1,0 +1,29 @@
+#!/usr/bin/python
+
+from re import sub
+from datetime import date
+
+squidlog = '/var/log/squid3/access.log.1'
+usagelog = '/var/log/squid-usage.log'
+
+usage_dict = {}
+
+for line in open(squidlog, 'r').readlines():
+    fields = sub(' +',' ',line).split(' ')
+    (user, usage) = (fields[7], fields[4])
+  #  print user, usage, line
+    if not user in usage_dict:
+        usage_dict[user] = {}
+        usage_dict[user]['requests'] = 0
+        usage_dict[user]['usage'] = 0
+
+    usage_dict[user]['requests'] += 1
+    usage_dict[user]['usage']    += int(usage)
+    
+    
+output = '%s:' % date.today()
+for user in sorted(usage_dict.keys()):
+   output += ' %s=%s;%s' % (user, usage_dict[user]['requests'], usage_dict[user]['usage']/1024)
+output += '\n'
+
+open(usagelog, 'a').write(output)
