@@ -953,6 +953,8 @@ def customize_host_stage1(hostname, regenerate_ssh_keys, root_keys, admin_user, 
     # Customize root account
     for key in root_keys:
         ssh_add_public_key(key, user='root')
+    # On some Centos installations, /root/ is 775    
+    _run('chmod go-w /root/', use_sudo = am_not_root())
 
     # TODO: enable pushing of skel for root even when we are not root
     if not need_sudo:
