@@ -990,7 +990,8 @@ def customize_host_stage2(relayhost, rootalias, setup_firewall, harden_ssh):
     pkg_install(packages)
 
     setup_postfix(relayhost=relayhost, rootalias=rootalias)
-    setup_ufw(allow=['ssh'])
+    if setup_firewall:
+        setup_ufw(allow=['ssh'])
 
 
 def customize_host( hostname = None, regenerate_ssh_keys = False, root_keys = [],
