@@ -956,7 +956,7 @@ def customize_host_stage1(hostname, regenerate_ssh_keys, root_keys, admin_user, 
 
     # TODO: enable pushing of skel for root even when we are not root
     if not need_sudo:
-        push_skeleton(local_path='./files/home-skel/',remote_path='.')
+        push_skeleton(local_path='../files/home-skel/',remote_path='.')
 
     allow_sudo_group()
 
@@ -981,7 +981,7 @@ def customize_host_stage2(relayhost, rootalias, setup_firewall, harden_ssh):
     need_sudo = True
     nilsson_run('true', use_sudo = need_sudo)
 
-    push_skeleton(local_path='./files/home-skel/', remote_path='.')
+    push_skeleton(local_path='../files/home-skel/', remote_path='.')
     harden_sshd()
     lock_user('root')
     pkg_upgrade()

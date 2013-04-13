@@ -19,7 +19,7 @@ def setup_stealth_proxy(name='proxy', realm='Welcome to the proxy', contact='hos
 
     conf = '/etc/squid3/squid.conf'
     nilsson.backup_orig(conf, use_sudo = need_sudo)
-    put( 'files' + conf, conf, use_sudo=need_sudo)
+    put( '../files' + conf, conf, use_sudo=need_sudo)
     sed(conf, 'CFG_PROXY_HOSTNAME',     name,    backup='', use_sudo=need_sudo)
     sed(conf, 'CFG_HOSTMASTER_ADDRESS', contact, backup='', use_sudo=need_sudo)
     sed(conf, 'CFG_PROXY_REALM',        realm,   backup='', use_sudo=need_sudo)
@@ -29,5 +29,5 @@ def setup_stealth_proxy(name='proxy', realm='Welcome to the proxy', contact='hos
     nilsson.configure_ufw(allow = ['8213/tcp'])
 
     conf = '/etc/cron.daily/squid3-usage'
-    put( 'files' + conf, conf, use_sudo=need_sudo)
+    put( '../files' + conf, conf, use_sudo=need_sudo)
     nilsson.nilsson_run('chmod +x %s' % conf, use_sudo=need_sudo)

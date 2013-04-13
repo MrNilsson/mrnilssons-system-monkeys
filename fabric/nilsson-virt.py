@@ -123,7 +123,7 @@ def install_vmhost(vm_ip_prefix=''):
     add_posix_group('libvirt')
     add_posix_user_to_group('admin','libvirt')
 
-    patch_file('/etc/libvirt/libvirtd.conf', 'files/etc/libvirtd.conf.patch', use_sudo=need_sudo)
+    patch_file('/etc/libvirt/libvirtd.conf', '../files/etc/libvirtd.conf.patch', use_sudo=need_sudo)
 
     nilsson_run('service libvirtd start', use_sudo=need_sudo)
 
@@ -132,7 +132,7 @@ def install_vmhost(vm_ip_prefix=''):
 
     if not exists('/etc/libvirt/storage/vg0.xml', use_sudo=need_sudo):
         nilsson_run('mkdir -p /etc/libvirt/storage', use_sudo=need_sudo)
-        put('files/etc/libvirt/storage/vg0.xml', '/etc/libvirt/storage/vg0.xml', use_sudo=need_sudo)
+        put('../files/etc/libvirt/storage/vg0.xml', '/etc/libvirt/storage/vg0.xml', use_sudo=need_sudo)
         nilsson_run('virsh pool-define /etc/libvirt/storage/vg0.xml', use_sudo=need_sudo)
         nilsson_run('virsh pool-start vg0', use_sudo=need_sudo)
         nilsson_run('virsh pool-autostart vg0', use_sudo=need_sudo)
