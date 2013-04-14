@@ -150,14 +150,15 @@ def am_not_root():
     return not env.user == 'root'
 
 
-def nilsson_run(command, shell=True, pty=True, combine_stderr=True, use_sudo=False):
+def nilsson_run(command, shell=True, pty=True, combine_stderr=True, use_sudo=False, warn_only=False):
     '''
     Like 'run()' with additional boolean argument 'use_sudo'
     '''
-    if use_sudo:
-        return sudo(command, shell=shell, pty=pty, combine_stderr=combine_stderr)
-    else:
-        return run( command, shell=shell, pty=pty, combine_stderr=combine_stderr)
+    with settings(warn_only=warn_only):
+        if use_sudo:
+            return sudo(command, shell=shell, pty=pty, combine_stderr=combine_stderr)
+        else:
+            return run( command, shell=shell, pty=pty, combine_stderr=combine_stderr)
 
 
 def nilsson_sudo(command, shell=True, pty=True, combine_stderr=True, user=None):
@@ -172,6 +173,16 @@ def nilsson_sudo(command, shell=True, pty=True, combine_stderr=True, user=None):
 
 _run    = nilsson_run
 _sudo   = nilsson_sudo
+
+
+def test_nilsson_run():
+    nilsson_run('ls -l /etc/passwd')
+    nilsson_run('ls -l /etc/shadow', warn_only=True)
+    nilsson_run('ls -l /etc/group', warn_only=True).succeeded
+    print nilsson_run('ls -l /etc/shadow1', warn_only=True).succeeded
+    print nilsson_run('ls -l /etc/shadow2', warn_only=True).failed
+    nilsson_run('ls -l /etc/shadow3')
+    print 'We never get here'
 
 
 def backup_orig(filename, suffix='.ORIG', use_sudo=False):
