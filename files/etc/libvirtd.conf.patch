@@ -1,14 +1,5 @@
 --- libvirtd.conf.ORIG	2013-01-28 20:27:36.000000000 +0100
 +++ libvirtd.conf	2013-02-17 18:49:40.000000000 +0100
-@@ -57,7 +57,7 @@
- # stopping the Avahi daemon
- #
- # This is enabled by default, uncomment this to disable it
--#mdns_adv = 0
-+mdns_adv = 0
- 
- # Override the default mDNS advertizement name. This must be
- # unique on the immediate broadcast network.
 @@ -78,14 +78,14 @@
  # without becoming root.
  #
