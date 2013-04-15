@@ -138,7 +138,7 @@ def install_libvirt_host(vm_ip_prefix='', lvm_pool='vg0', mac_prefix='52:54:00',
         nilsson_run('service libvirtd stop', use_sudo=need_sudo)
     add_posix_group('libvirt')
     add_posix_user_to_group('admin','libvirt')
-    patch_file('/etc/libvirt/libvirtd.conf', '../files/etc/libvirtd.conf.patch', use_sudo=need_sudo)
+    patch_file('/etc/libvirt/libvirtd.conf', '../files/etc/libvirt/libvirtd.conf.patch', use_sudo=need_sudo)
     nilsson_run('service libvirtd start', use_sudo=need_sudo)
 
 
