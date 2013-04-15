@@ -204,12 +204,13 @@ $DHCP_OPTION
 
 
     ####
-    # Reset any existing iptables rules, then configure masquerading
-    if configure_iptables:
-        pkg_install('iptables')
-        nilsson_run('service iptables stop', use_sudo=need_sudo)
-        nilsson_run('iptables --table nat --append POSTROUTING --out-interface %s --source %s ! --destination %s --jump MASQUERADE' % (external_interface, vm_net,  vm_net),    use_sudo=need_sudo)
+    # Reset any existing iptables rules, then configure masquerading & checksum fix for DHCP
+    pkg_install('iptables')
+    nilsson_run('service iptables stop', use_sudo=need_sudo)
+    nilsson_run('iptables --table nat    --append POSTROUTING --out-interface %s --source %s ! --destination %s --jump MASQUERADE' % (external_interface, vm_net,  vm_net), use_sudo=need_sudo)
+    nilsson_run('iptables --table mangle --append POSTROUTING --out-interface %s --protocol udp --dport 68 --jump CHECKSUM --checksum-fill' % 'br0', use_sudo=need_sudo)
 
+    if configure_iptables:
         if vm_vpn:
             if not vm_vpn == vpn_net:
                 nilsson_run('iptables --table nat --append POSTROUTING --out-interface %s --source %s ! --destination %s --jump MASQUERADE' % (external_interface, vpn_net, vpn_net),   use_sudo=need_sudo)
@@ -219,7 +220,7 @@ $DHCP_OPTION
             nilsson_run('iptables --table nat --append PREROUTING   --in-interface %s --protocol tcp --dport   80 --jump DNAT --to-destination %s' % (external_interface, vm_http), use_sudo=need_sudo)
             nilsson_run('iptables --table nat --append PREROUTING   --in-interface %s --protocol tcp --dport  443 --jump DNAT --to-destination %s' % (external_interface, vm_http), use_sudo=need_sudo)
 
-        nilsson_run('service iptables save', use_sudo=need_sudo)
+    nilsson_run('service iptables save', use_sudo=need_sudo)
 
 
 
