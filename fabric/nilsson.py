@@ -753,7 +753,7 @@ def upload_string(filename, s, backup=True, use_sudo=False):
     localfile.write(s)
     localfile.close()
 
-    if backup:
+    if backup and exists(filename):
         backup_orig(filename, use_sudo=use_sudo)
 
     put(localfilename, filename, use_sudo=use_sudo)
