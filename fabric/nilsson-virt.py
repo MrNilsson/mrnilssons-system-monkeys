@@ -1,4 +1,10 @@
 """
+Mr Nilsson's methods to install and configure libvirt/KVM based 
+virtualisation onto a RHEL-flavoured (e.g. CentOS) hardware node.
+"""
+
+
+"""
 Copyright 2012 Nils Toedtmann <http://nils.toedtmann.net/>
 
 This file is part of Mr. Nilsson's Little System Monkeys:
@@ -22,6 +28,8 @@ along with Mr. Nilsson's Little System Monkeys. If not, see
 
 from nilsson import *
 from nilsson import _boolify
+
+from fabric.decorators import task
 from fabric.api import sudo, run#, settings, env, prefix, cd, lcd, local # task
 from fabric.contrib.files import exists, comment, uncomment, put, append # sed, contains
 #from fabric.contrib.project import rsync_project
@@ -31,6 +39,7 @@ from random import randint #, choice
 from string import Template
 
 
+@task
 def move_mount_into_rootfs(mountpoint):
     if am_not_root():
         raise Exception('FATAL: must be root')
@@ -57,6 +66,7 @@ def move_mount_into_rootfs(mountpoint):
     return device
 
 
+@task
 def turn_mount_into_volumegroup(mountpoint,vgname):
     if am_not_root():
         raise Exception('FATAL: must be root')
@@ -71,6 +81,7 @@ def turn_mount_into_volumegroup(mountpoint,vgname):
     run('lvcreate --size 1M --name %s_testvol %s' % (vgname, vgname))  # Only now the volume group appears
 
 
+@task
 def configure_libvirt_lvm_pool(vg = 'vg0'):
     '''
     Configure existing LVM group vg for use as libvirt storage pool
@@ -95,10 +106,10 @@ def configure_libvirt_lvm_pool(vg = 'vg0'):
     nilsson_run('virsh pool-define    %s' % vg_tmp)
     nilsson_run('virsh pool-start     %s' % vg)
     nilsson_run('virsh pool-autostart %s' % vg)
-
     
 
-def install_vmhost(vm_ip_prefix='', lvm_pool='vg0', mac_prefix='52:54:00', vm_http_suffix='5', vm_vpn_suffix='3', vpn_net='', configure_iptables=True, external_interface='eth0'):
+@task
+def install_libvirt_host(vm_ip_prefix='', lvm_pool='vg0', mac_prefix='52:54:00', vm_http_suffix='5', vm_vpn_suffix='3', vpn_net='', configure_iptables=True, external_interface='eth0'):
     need_sudo = am_not_root()
 
     ####
@@ -227,7 +238,7 @@ dhcp-option=DHCP_OPTION
         nilsson_run('wget -c --progress=dot -P /var/lib/libvirt/images/ %s' % image_url, use_sudo=need_sudo)
 
 
-
+@task
 def create_libvirt_bridge(name, interface, ip_address, netmask = '255.255.255.0', route = ''):
     '''
     Define a bridge interface outside libvirt, and make it known to libvirt
@@ -271,7 +282,7 @@ NETMASK=MY_NETMASK
     nilsson_run('virsh net-start     default' % name, use_sudo=need_sudo)
 
 
-def generate_ethers(ip_prefix, min_octet=2, max_octet=254, mac_prefix = '52:54:00', echo=False):
+def generate_ethers(ip_prefix, min_octet=2, max_octet=254, mac_prefix = '52:54:00'):
     '''
     Generate the contents of /etc/ethers for a given IP range
     '''
@@ -285,8 +296,6 @@ def generate_ethers(ip_prefix, min_octet=2, max_octet=254, mac_prefix = '52:54:0
         mac_octet = '%0.2X' % int(octet)
         hostlist += "%s:%s %s.%s\n" % (mac_prefix, mac_octet, ip_prefix, octet)
 
-    if echo:
-        print hostlist
     return hostlist
 
 
@@ -302,7 +311,8 @@ def read_ethers():
     return (macs, ips)
 
 
-def assigned_macs():
+@task
+def assigned_macs(echo=False):
     '''
     Return list of MAC addresses currently in use by VMs
     '''
@@ -313,10 +323,14 @@ def assigned_macs():
     macs2 = nilsson_run("ip link sh | grep ether | awk '{print $2}'", use_sudo=need_sudo).split()
 
     macs = set([ mac.upper() for mac in macs1 + macs2 ])
+
+    if echo:
+        print macs
     return macs
 
 
 VM_DEFAULT_SIZE = '10G'
+@task
 def clone_vm(name, original = None, size = VM_DEFAULT_SIZE, mac = None, ip = None, volume_group = 'vg0', snapshot = False):
     '''
     Clone a VM. There is a default VM to clone.
