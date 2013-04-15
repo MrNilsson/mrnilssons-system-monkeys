@@ -140,8 +140,8 @@ def install_vmhost(vm_ip_prefix='', lvm_pool='vg0', mac_prefix='52:54:00', vm_ht
     ####
     # Configure internal default VM network
     vm_net   = vm_ip_prefix + '.0/24'
-    dhcp_min = vm_ip_prefix + '.128'
-    dhcp_max = vm_ip_prefix + '.254'
+    dhcp_min = vm_ip_prefix + '.2'
+    dhcp_max = vm_ip_prefix + '.199'
 
     if vm_vpn_suffix:
         if not vpn_net:
@@ -184,6 +184,7 @@ dhcp-option=DHCP_OPTION
 
     nilsson_run('service dnsmasq stop', use_sudo=need_sudo, warn_only=True)
     upload_string('/etc/dnsmasq.conf', dnsmasq_conf, use_sudo=need_sudo)
+    upload_string('/etc/ethers', generate_ethers(vm_ip_prefix, min_octet=2, max_octet=99, mac_prefix=mac_prefix))
     nilsson_run('service dnsmasq start', use_sudo=need_sudo, warn_only=True)
 
 
