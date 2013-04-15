@@ -16,3 +16,4 @@
  * create_libvirt_bridge(): have option to destroy pre-exiting interface
  * Add general iptables-add-rule method
  * Secure vmhost itself, only allowing igres SSH, and DHCP and DNS from br*
+ * Test whether install_libvirt_host() actually runs as non-root
