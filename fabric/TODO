@@ -1,0 +1,13 @@
+
+ * Accounce dependancy against fabric 1.5. Explain how to install on precise
+ * Introduce task decorator
+ * Proper comments for all tasks with parameters explained
+ * Separate off tests. Maybe introduce more "echo=True" parameters?
+ * Separate off nils own specifica
+ * Fix yum/apt progress bar
+ * Do private/local functions properly. Learn about method name clash
+ * Make sure ufw is enabled
+ * Maybe doctest?
+ * Separate VPN/HTTP-proxy specifica off install_vmhost()
+ * Introcude "profiles"
+
