@@ -243,7 +243,7 @@ def install_libvirt_host(vm_ip_prefix='', lvm_pool='vg0', mac_prefix='52:54:00',
         'http://old-releases.ubuntu.com/releases/precise/ubuntu-12.04.1-alternate-amd64.iso',
         'http://old-releases.ubuntu.com/releases/precise/ubuntu-12.04.1-server-amd64.iso' 
     ]: 
-        nilsson_run('wget -c --progress=dot:mega -P /var/lib/libvirt/images/ %s' % image_url, use_sudo=need_sudo)
+        nilsson_run('wget -c --progress=dot -P /var/lib/libvirt/images/ %s' % image_url, use_sudo=need_sudo)
 
 
 @task
