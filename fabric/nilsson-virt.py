@@ -82,10 +82,12 @@ def turn_mount_into_volumegroup(mountpoint,vgname):
 
 
 @task
-def configure_libvirt_lvm_pool(vg = 'vg0'):
+def configure_libvirt_lvm_pool(vg):
     '''
     Configure existing LVM group vg for use as libvirt storage pool
     '''
+    need_sudo = am_not_root()
+
     # Fail if libvirt declaration already exists:
     if nilsson_run('virsh pool-info %s > /dev/null' % vg, warn_only=True).succeeded :
         raise Exception('FATAL: libvirt LVM pool decalration with this name already exists!')
@@ -95,9 +97,9 @@ def configure_libvirt_lvm_pool(vg = 'vg0'):
 
     vg_tmp  = '/tmp/libvirt-storage-%s.xml' % vg
     vg_conf = Template('''<pool type='logical'>
-  <name>LVM_GROUP</name>
+  <name>$LVM_GROUP</name>
   <target>
-    <path>/dev/LVM_GROUP</path>
+    <path>/dev/$LVM_GROUP</path>
   </target>
 </pool>
 ''').safe_substitute(LVM_GROUP = vg)
@@ -109,7 +111,7 @@ def configure_libvirt_lvm_pool(vg = 'vg0'):
     
 
 @task
-def install_libvirt_host(vm_ip_prefix='', lvm_pool='vg0', mac_prefix='52:54:00', vm_http_suffix='5', vm_vpn_suffix='3', vpn_net='', configure_iptables=True, external_interface='eth0'):
+def _install_libvirt_host(vm_ip_prefix='', lvm_pool='vg0', mac_prefix='52:54:00', vm_http_suffix='5', vm_vpn_suffix='3', vpn_net='', configure_iptables=True, external_interface='eth0'):
     need_sudo = am_not_root()
 
     ####
@@ -167,6 +169,8 @@ def install_libvirt_host(vm_ip_prefix='', lvm_pool='vg0', mac_prefix='52:54:00',
     if vm_http_suffix:
         vm_http = vm_ip_prefix + '.' + vm_http_suffix
 
+    nilsson_run('virsh net-destroy   default')
+    nilsson_run('virsh net-undefine  default')
     create_libvirt_bridge('default', 'br0', vm_ip_prefix + '.1', route = vpn_route)
     create_libvirt_bridge('public',  'br1', '0.0.0.0', netmask = '255.255.255.255')
 
@@ -177,7 +181,7 @@ def install_libvirt_host(vm_ip_prefix='', lvm_pool='vg0', mac_prefix='52:54:00',
     pkg_install('dnsmasq')
 
     dnsmasq_conf = Template('''
-interface=INTERFACE
+interface=$INTERFACE
 bind-interfaces
 except-interface=lo
 
@@ -185,8 +189,8 @@ read-ethers
 no-hosts
 
 dhcp-authoritative
-dhcp-range=DHCP_RANGE
-dhcp-option=DHCP_OPTION
+dhcp-range=$DHCP_RANGE
+$DHCP_OPTION
 ''').safe_substitute( 
         INTERFACE   = 'br0',
         DHCP_RANGE  = '%s,%s' % (dhcp_min, dhcp_max),
@@ -229,28 +233,33 @@ dhcp-option=DHCP_OPTION
     nilsson_run('service ntpd restart', use_sudo=need_sudo)
 
 
+@task
+def install_libvirt_host(vm_ip_prefix='', lvm_pool='vg0', mac_prefix='52:54:00', vm_http_suffix='5', vm_vpn_suffix='3', vpn_net='', configure_iptables=True, external_interface='eth0'):
+    need_sudo = am_not_root()
+    
     ####
     # Download distro images
-    for url_image in [
+    for image_url in [
         'http://old-releases.ubuntu.com/releases/precise/ubuntu-12.04.1-alternate-amd64.iso',
         'http://old-releases.ubuntu.com/releases/precise/ubuntu-12.04.1-server-amd64.iso' 
     ]: 
-        nilsson_run('wget -c --progress=dot -P /var/lib/libvirt/images/ %s' % image_url, use_sudo=need_sudo)
+        nilsson_run('wget -c --progress=dot:mega -P /var/lib/libvirt/images/ %s' % image_url, use_sudo=need_sudo)
 
 
 @task
-def create_libvirt_bridge(name, interface, ip_address, netmask = '255.255.255.0', route = ''):
+def create_libvirt_bridge(name, interface, ip_address, netmask = '255.255.255.0', route = '', destroy_existing=False):
     '''
     Define a bridge interface outside libvirt, and make it known to libvirt
     '''
+    need_sudo = am_not_root()
 
-    if_conf = Template('''DEVICE=INTERFACE
+    if_conf = Template('''DEVICE=$INTERFACE
 TYPE=Bridge
 ONBOOT=yes
 DELAY=0
 BOOTPROTO=static
-IPADDR=MY_IPADDR
-NETMASK=MY_NETMASK
+IPADDR=$MY_IPADDR
+NETMASK=$MY_NETMASK
 ''').safe_substitute(
         INTERFACE = interface,
         MY_IPADDR = ip_address,
@@ -258,35 +267,27 @@ NETMASK=MY_NETMASK
     )
 
     upload_string('/etc/sysconfig/network-scripts/ifcfg-%s' % interface, if_conf, use_sudo=need_sudo)
-
     if route:
         append('/etc/sysconfig/network-scripts/route-%s' % interface, route, use_sudo=need_sudo )
-
     nilsson_run('ifup %s' % interface, use_sudo=need_sudo)
 
-    libvirt_conf_br0 = '''<network>
-  <name>default</name>
+    libvirt_bridge_conf = Template('''<network>
+  <name>$NAME</name>
   <forward mode='bridge'/>
-  <bridge name='br0' />
+  <bridge name='$BRIDGE' />
 </network>
-'''
+''').safe_substitute(NAME = name, BRIDGE = interface)
 
-    nilsson.upload_string('/tmp/libvirt-default.xml', libvirt_conf_br0, backup=False, use_sudo=False)
-    nilsson.upload_string('/tmp/libvirt-public.xml',  libvirt_conf_br1, backup=False, use_sudo=False)
-
-    nilsson_run('virsh net-destroy   default', use_sudo=need_sudo)
-    nilsson_run('virsh net-undefine  default', use_sudo=need_sudo)
-
-    nilsson_run('virsh net-define    /tmp/libvirt-default.xml' % vm_network_conf, use_sudo=need_sudo)
-    nilsson_run('virsh net-autostart default' % name, use_sudo=need_sudo)
-    nilsson_run('virsh net-start     default' % name, use_sudo=need_sudo)
+    upload_string('/tmp/libvirt-%s.xml' % name, libvirt_bridge_conf, backup=False)
+    nilsson_run('virsh net-define    /tmp/libvirt-%s.xml' % name)
+    nilsson_run('virsh net-autostart %s' % name)
+    nilsson_run('virsh net-start     %s' % name)
 
 
 def generate_ethers(ip_prefix, min_octet=2, max_octet=254, mac_prefix = '52:54:00'):
     '''
     Generate the contents of /etc/ethers for a given IP range
     '''
-    echo = _boolify(echo)
 
     for octet in ip_prefix.split('.')[1:]:
         mac_prefix += ':%0.2X' % int(octet)
