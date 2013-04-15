@@ -13,3 +13,6 @@
  * install_libvirt_host(): Check whether libvirt is <= 0.9.10. In that case,
    avahi is enabled by default and should be disabled via mdns_adv=0 in 
    libvird.conf. See https://bugzilla.redhat.com/show_bug.cgi?id=807273
+ * create_libvirt_bridge(): have option to destroy pre-exiting interface
+ * Add general iptables-add-rule method
+ * Secure vmhost itself, only allowing igres SSH, and DHCP and DNS from br*
