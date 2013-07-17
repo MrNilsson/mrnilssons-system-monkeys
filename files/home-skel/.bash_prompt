@@ -27,4 +27,4 @@ if [ "$PS1" ]; then
 
 fi
 
-PROMPT_COMMAND='echo -ne "\033]0;${USER}@${PROMPT_HOSTNAME}: ${PWD/$HOME/~}\007"'
+PROMPT_COMMAND='echo -ne "\033]0;${USER}@${HOSTNAME}: ${PWD/$HOME/~}\007"'
