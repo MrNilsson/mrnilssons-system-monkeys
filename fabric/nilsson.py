@@ -1025,7 +1025,8 @@ def customize_host( hostname = None, regenerate_ssh_keys = False, root_keys = []
 
     customize_host_stage1(hostname, regenerate_ssh_keys, root_keys, admin_user, admin_group, admin_keys)
 
-    with settings(user='admin'):
+    # with settings(user='admin'): DOES NOT WORK when there is an explicit user name already mentioned in host_string
+    with settings(host_string='%s@%s' % (admin_user, env.host)):
         customize_host_stage2(relayhost, rootalias, setup_firewall, harden_ssh)
 
 
