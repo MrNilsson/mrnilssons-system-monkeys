@@ -615,7 +615,6 @@ def harden_sshd():
 
 def set_hostname(hostname):
     # TODO: reload MTA
-    # TODO: consider redhat case!
 
     if not hostname or hostname == 'None':
         hostname = env.host
@@ -633,10 +632,14 @@ def set_hostname(hostname):
     else:
         sed('/etc/hosts', '^(127\.0\.1\.1) (.*)$', '\\1 %s \\2' % hostname, use_sudo=need_sudo)
 
-    _run('echo %s > /etc/hostname' % hostname, use_sudo=need_sudo)
-    _run('hostname -F /etc/hostname', use_sudo=need_sudo)
-    if exists('/etc/mailname'):
-        _run('echo %s > /etc/mailname' % hostname, use_sudo=need_sudo)
+    if distro_flavour() == 'redhat':
+        sed('/etc/sysconfig/network', '^HOSTNAME=.*', 'HOSTNAME=%s', use_sudo=need_sudo)
+        _run('hostname %s' % hostname, use_sudo=need_sudo)
+    else:
+        _run('echo %s > /etc/hostname' % hostname, use_sudo=need_sudo)
+        _run('hostname -F /etc/hostname', use_sudo=need_sudo)
+        if exists('/etc/mailname'):
+            _run('echo %s > /etc/mailname' % hostname, use_sudo=need_sudo)
     
     # Restart logging service
     servicename = 'rsyslog'
