@@ -111,7 +111,7 @@ def configure_libvirt_lvm_pool(hypervisor, vg):
     
 
 @task
-def _install_libvirt_host(vm_ip_prefix='', lvm_pool='vg0', mac_prefix='52:54:00', vm_http_suffix='5', vm_vpn_suffix='3', vpn_net='', configure_iptables=True, external_interface='eth0'):
+def install_libvirt_host(vm_ip_prefix='', lvm_pool='vg0', mac_prefix='52:54:00', vm_http_suffix='5', vm_vpn_suffix='3', vpn_net='', configure_iptables=True, external_interface='eth0'):
     need_sudo = am_not_root()
 
     ####
@@ -151,11 +151,6 @@ def _install_libvirt_host(vm_ip_prefix='', lvm_pool='vg0', mac_prefix='52:54:00'
         configure_libvirt_lvm_pool(hypervisor, lvm_pool)
 
 
-@task
-def install_libvirt_host(vm_ip_prefix='', lvm_pool='vg0', mac_prefix='52:54:00', vm_http_suffix='5', vm_vpn_suffix='3', vpn_net='', configure_iptables=True, external_interface='eth0'):
-    need_sudo = am_not_root()
-    hypervisor = 'qemu:///system'
-
     ####
     # Configure internal default VM network
     vm_net   = vm_ip_prefix + '.0/24'
@@ -176,10 +171,10 @@ def install_libvirt_host(vm_ip_prefix='', lvm_pool='vg0', mac_prefix='52:54:00',
         vm_http = vm_ip_prefix + '.' + vm_http_suffix
 
 
-    #nilsson_run('virsh --connect %s net-destroy   default' % hypervisor)
-    #nilsson_run('virsh --connect %s net-undefine  default' % hypervisor)
-    #create_libvirt_bridge(hypervisor, 'default', 'br0', vm_ip_prefix + '.1', route = vpn_route)
-    #create_libvirt_bridge(hypervisor, 'public',  'br1', '0.0.0.0', netmask = '255.255.255.255')
+    nilsson_run('virsh --connect %s net-destroy   default' % hypervisor)
+    nilsson_run('virsh --connect %s net-undefine  default' % hypervisor)
+    create_libvirt_bridge(hypervisor, 'default', 'br0', vm_ip_prefix + '.1', route = vpn_route)
+    create_libvirt_bridge(hypervisor, 'public',  'br1', '0.0.0.0', netmask = '255.255.255.255')
 
 
     ####
@@ -246,7 +241,10 @@ $DHCP_OPTION
     # Download distro images
     for image_url in [
         'http://old-releases.ubuntu.com/releases/precise/ubuntu-12.04.1-alternate-amd64.iso',
-        'http://old-releases.ubuntu.com/releases/precise/ubuntu-12.04.1-server-amd64.iso' 
+        'http://old-releases.ubuntu.com/releases/precise/ubuntu-12.04.1-server-amd64.iso',
+        'http://cdimage.debian.org/debian-cd/7.1.0/amd64/iso-cd/debian-7.1.0-amd64-netinst.iso',
+        'http://download.fedoraproject.org/pub/fedora/linux/releases/19/Live/x86_64/Fedora-Live-Desktop-x86_64-19-1.iso',
+        'http://ftp.tu-chemnitz.de/pub/linux/centos/6.4/isos/x86_64/CentOS-6.4-x86_64-minimal.iso'
     ]: 
         nilsson_run('wget -c --progress=dot -P /var/lib/libvirt/images/ %s' % image_url, use_sudo=need_sudo)
 
