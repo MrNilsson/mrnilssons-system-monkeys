@@ -82,14 +82,14 @@ def turn_mount_into_volumegroup(mountpoint,vgname):
 
 
 @task
-def configure_libvirt_lvm_pool(vg):
+def configure_libvirt_lvm_pool(hypervisor, vg):
     '''
     Configure existing LVM group vg for use as libvirt storage pool
     '''
     need_sudo = am_not_root()
 
     # Fail if libvirt declaration already exists:
-    if nilsson_run('virsh pool-info %s > /dev/null' % vg, warn_only=True).succeeded :
+    if nilsson_run('virsh --connect %s pool-info %s > /dev/null' % (hypervisor, vg), warn_only=True).succeeded :
         raise Exception('FATAL: libvirt LVM pool decalration with this name already exists!')
 
     # Fail if vg doesn't exist:
@@ -105,9 +105,9 @@ def configure_libvirt_lvm_pool(vg):
 ''').safe_substitute(LVM_GROUP = vg)
 
     upload_string(vg_tmp, vg_conf)
-    nilsson_run('virsh pool-define    %s' % vg_tmp)
-    nilsson_run('virsh pool-start     %s' % vg)
-    nilsson_run('virsh pool-autostart %s' % vg)
+    nilsson_run('virsh --connect %s pool-define    %s' % (hypervisor, vg_tmp))
+    nilsson_run('virsh --connect %s pool-autostart %s' % (hypervisor, vg))
+    nilsson_run('virsh --connect %s pool-start     %s' % (hypervisor, vg))
     
 
 @task
@@ -136,6 +136,7 @@ def _install_libvirt_host(vm_ip_prefix='', lvm_pool='vg0', mac_prefix='52:54:00'
 
     ####
     # Configure libvirtd
+    hypervisor = 'qemu:///system'
     with settings(warn_only=True):
         nilsson_run('service libvirtd stop', use_sudo=need_sudo)
     add_posix_group('libvirt')
@@ -147,8 +148,13 @@ def _install_libvirt_host(vm_ip_prefix='', lvm_pool='vg0', mac_prefix='52:54:00'
     ####
     # Configure LVM storage pool 
     if lvm_pool:
-        configure_libvirt_lvm_pool(lvm_pool)
+        configure_libvirt_lvm_pool(hypervisor, lvm_pool)
 
+
+@task
+def install_libvirt_host(vm_ip_prefix='', lvm_pool='vg0', mac_prefix='52:54:00', vm_http_suffix='5', vm_vpn_suffix='3', vpn_net='', configure_iptables=True, external_interface='eth0'):
+    need_sudo = am_not_root()
+    hypervisor = 'qemu:///system'
 
     ####
     # Configure internal default VM network
@@ -169,10 +175,11 @@ def _install_libvirt_host(vm_ip_prefix='', lvm_pool='vg0', mac_prefix='52:54:00'
     if vm_http_suffix:
         vm_http = vm_ip_prefix + '.' + vm_http_suffix
 
-    nilsson_run('virsh net-destroy   default')
-    nilsson_run('virsh net-undefine  default')
-    create_libvirt_bridge('default', 'br0', vm_ip_prefix + '.1', route = vpn_route)
-    create_libvirt_bridge('public',  'br1', '0.0.0.0', netmask = '255.255.255.255')
+
+    #nilsson_run('virsh --connect %s net-destroy   default' % hypervisor)
+    #nilsson_run('virsh --connect %s net-undefine  default' % hypervisor)
+    #create_libvirt_bridge(hypervisor, 'default', 'br0', vm_ip_prefix + '.1', route = vpn_route)
+    #create_libvirt_bridge(hypervisor, 'public',  'br1', '0.0.0.0', netmask = '255.255.255.255')
 
 
     ####
@@ -199,7 +206,7 @@ $DHCP_OPTION
 
     nilsson_run('service dnsmasq stop', use_sudo=need_sudo, warn_only=True)
     upload_string('/etc/dnsmasq.conf', dnsmasq_conf, use_sudo=need_sudo)
-    upload_string('/etc/ethers', generate_ethers(vm_ip_prefix, min_octet=2, max_octet=99, mac_prefix=mac_prefix))
+    upload_string('/etc/ethers', generate_ethers(vm_ip_prefix, min_octet=2, max_octet=99, mac_prefix=mac_prefix), use_sudo=need_sudo)
     nilsson_run('service dnsmasq start', use_sudo=need_sudo, warn_only=True)
 
 
@@ -234,9 +241,6 @@ $DHCP_OPTION
     nilsson_run('service ntpd restart', use_sudo=need_sudo)
 
 
-@task
-def install_libvirt_host(vm_ip_prefix='', lvm_pool='vg0', mac_prefix='52:54:00', vm_http_suffix='5', vm_vpn_suffix='3', vpn_net='', configure_iptables=True, external_interface='eth0'):
-    need_sudo = am_not_root()
     
     ####
     # Download distro images
@@ -248,7 +252,7 @@ def install_libvirt_host(vm_ip_prefix='', lvm_pool='vg0', mac_prefix='52:54:00',
 
 
 @task
-def create_libvirt_bridge(name, interface, ip_address, netmask = '255.255.255.0', route = '', destroy_existing=False):
+def create_libvirt_bridge(hypervisor, name, interface, ip_address, netmask = '255.255.255.0', route = '', destroy_existing=False):
     '''
     Define a bridge interface outside libvirt, and make it known to libvirt
     '''
@@ -280,9 +284,9 @@ NETMASK=$MY_NETMASK
 ''').safe_substitute(NAME = name, BRIDGE = interface)
 
     upload_string('/tmp/libvirt-%s.xml' % name, libvirt_bridge_conf, backup=False)
-    nilsson_run('virsh net-define    /tmp/libvirt-%s.xml' % name)
-    nilsson_run('virsh net-autostart %s' % name)
-    nilsson_run('virsh net-start     %s' % name)
+    nilsson_run('virsh --connect %s net-define    /tmp/libvirt-%s.xml' % (hypervisor, name))
+    nilsson_run('virsh --connect %s net-autostart %s' % (hypervisor, name))
+    nilsson_run('virsh --connect %s net-start     %s' % (hypervisor, name))
 
 
 def generate_ethers(ip_prefix, min_octet=2, max_octet=254, mac_prefix = '52:54:00'):
