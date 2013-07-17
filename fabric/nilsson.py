@@ -939,6 +939,13 @@ def push_skeleton(local_path, remote_path):
             #remote_file_content = run('cat %s' % remote_file_name).replace('\r\n', '\n')
 
 
+def set_timezone(tz='UTC'):
+    _run('date')
+    _run('cp -a /usr/share/zoneinfo/%s /etc/localtime' % tz, use_sudo = am_not_root())
+    _run('date')
+
+
+
 #############################################33
 # TODO nilsification: 
 #   Bug: when call as 'admin', the root key is appended again
@@ -960,6 +967,7 @@ def customize_host_stage1(hostname, regenerate_ssh_keys, root_keys, admin_user, 
         hostname = env.host
 
     set_hostname(hostname)
+    set_timezone()
 
     if regenerate_ssh_keys:
         regenerate_ssh_host_keys()
