@@ -1,0 +1,53 @@
+# Source this to use functions
+
+PROGNAME=`basename $0`
+
+[ -z ${PID_FILE} ] && PID_FILE="/var/run/${PROGNAME}.pid"
+[ -z ${LOG_TAG}  ] && LOG_TAG="${PROGNAME}"
+[ -z ${LOGGER_OPTIONS} ] && LOGGER_OPTIONS=""
+
+LOCKFILE_BIN="/usr/bin/lockfile"
+LOGGER_BIN="/usr/bin/logger"
+TIMEFORMAT="+%Y/%m/%d-%H:%M:%S"
+
+if ! [ -x ${LOGGER_BIN} ] ; then
+    echo "ERROR: ${LOGGER_BIN} not found! Please install 'logger'. Exiting." 1>&2
+    exit 1
+fi
+
+
+_log()    { 
+    ${LOGGER_BIN}  ${LOGGER_OPTIONS}  --tag "${LOG_TAG}" "${@}" 
+    if [ -n ${LOG_FILE} ] ; then
+	echo "`date ${TIMEFORMAT}`: ${@}" >> ${LOG_FILE}
+    fi
+}
+
+
+_error()  { 
+    LOGGER_OPTIONS="--stderr ${LOGGER_OPTIONS}"
+    _log "${@}"
+    exit 1 
+}
+
+
+if ! [ -x ${LOCKFILE_BIN} ] ; then
+    _error "ERROR: ${LOCKFILE_BIN} not found! Please install the 'procmail' package. Exiting."
+fi
+
+_unlock() {
+    rm -f ${PID_FILE}
+}
+
+_lock() {
+    lockfile -r 0 ${PID_FILE} || _error "ERROR: could not aquire lock ${PID_FILE}. Maybe another instance of this script is already running? Exiting."
+    trap _unlock EXIT
+    echo "$$" > ${PID_FILE}
+}
+
+_get_command_from_basename() {
+    # If there is no command to be found as ARG1, you could check whether 
+    # we are called with some '-command' suffix (e.g. '-start') and if yes, 
+    # use that.
+    basename $0 | grep '\-' | sed -e 's,^.*-\([^-]*\)$,\1,'
+}
