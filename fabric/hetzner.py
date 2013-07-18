@@ -21,23 +21,14 @@ def main():
         ssh_add_public_key('nils')
         ssh_add_public_key('baach')
 
-        # On Hetzner EX*, the big partition is mounted as /home. Turn in a LVM volume group
-        turn_mount_into_volumegroup('/home','vg0')
-
-    if not confirm("Do you want to continue?"):
-        return
+        # On Hetzner EX* (but not EX*0), the big partition is mounted as /home. Turn in a LVM volume group
+     #  turn_mount_into_volumegroup('/home','vg0')
 
     # Nilsify the virtualisation host
     customize_host(
         admin_keys = ['nils.toedtmann','joerg.baach'], 
         rootalias  = 'sharedserver@baach.de',
         setup_firewall=False)
-
-
-    print('Now login, yum upgrade, reboot and check kernel')
-
-    if not confirm("Do you want to continue?"):
-        return
 
     with settings(user = 'admin'):
         print('%s' % env.host_string)
