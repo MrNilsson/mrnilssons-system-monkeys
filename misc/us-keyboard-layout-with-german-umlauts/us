@@ -59,14 +59,32 @@ xkb_symbols "basic" {
     // End alphanumeric section
 };
 
+
+// Nils Toedtmann <nils@toedtmann.net> 2013-07-16
+// German Umlauts and Eszett on level3
+partial
+xkb_symbols "umlauts" {
+    key <AC01> 	{ [  NoSymbol,   NoSymbol,   adiaeresis,	Adiaeresis ]	};
+    key <AD09>  { [  NoSymbol,   NoSymbol,   odiaeresis,	Odiaeresis ]	};
+    key <AD07>  { [  NoSymbol,   NoSymbol,   udiaeresis,	Udiaeresis ]	};
+    key <AC02>	{ [  NoSymbol,   NoSymbol,   ssharp,	NoSymbol ]	};
+ // key <AC02>	{ [  NoSymbol,   NoSymbol,   ssharp,	U1E9E ]	};
+};
+
+
+// I haven't bothered to find out how to register another layout with 
+// the Ubuntu Desktop. So instead i just extend an existing layout.
+// Restart your X and select the us(euro) layout.
 partial alphanumeric_keys
 xkb_symbols "euro" {
 
-    name[Group1]= "English (US, with euro on 5)";
+    name[Group1]= "English (US, with German umlauts and Euro via AltGr)";
 
     include "us(basic)"
 
     include "eurosign(5)"
+
+    include "us(umlauts)"
 
     include "level3(ralt_switch)"
 };
