@@ -1,0 +1,9 @@
+This a modified US keyboard layout file. It adds German umlauts 
+to the existing layout 'us(euro)'. Usage: 
+
+ * Replace /usr/share/X11/xkb/symbols/us with this one
+ * Restart X, e.g. <Ctrl>-<Alt>-<Backspace> or logout/login
+ * Go into the keyboard setting ans select this layout:
+
+   "us(euro): English (US, with German umlauts and Euro via AltGr)"
+
