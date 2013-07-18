@@ -995,6 +995,10 @@ def customize_host_stage1(hostname, regenerate_ssh_keys, root_keys, admin_user, 
     # On some Centos installations, /root/ is 775    
     _run('chmod go-w /root/', use_sudo = am_not_root())
 
+    # Need to install some packages even before we can do push_skeleton()
+    packages = ['wget', 'rsync', 'patch', 'screen', 'man', 'vim', 'openssh-clients']
+    pkg_install(packages)
+
     # TODO: enable pushing of skel for root even when we are not root
     if not need_sudo:
         push_skeleton(local_path='../files/home-skel/',remote_path='.')
@@ -1026,9 +1030,6 @@ def customize_host_stage2(relayhost, rootalias, setup_firewall, harden_ssh):
     harden_sshd()
     lock_user('root')
     pkg_upgrade()
-
-    packages = ['screen', 'man', 'vim', 'wget', 'openssh-clients', 'patch', 'rsync']
-    pkg_install(packages)
 
     setup_postfix(relayhost=relayhost, rootalias=rootalias)
     if setup_firewall:
