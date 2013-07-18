@@ -947,8 +947,20 @@ def set_timezone(tz='UTC'):
 
 def disable_selinux():
     need_sudo = am_not_root()
-    _run('setenforce 0', use_sudo = need_sudo)
-    sed('/etc/sysconfig/selinux', '^SELINUX=.*', 'SELINUX=disabled', backup='', use_sudo = need_sudo)
+
+    if not exists('/usr/sbin/getenforce'):
+        print('Cannot find /usr/sbin/getenforce, SElinux system probably not installed')
+        return
+
+    if _run('getenforce', use_sudo = need_sudo) == 'Disabled':
+        print('INFO: SElinux already disabled')
+    else:
+        _run('setenforce 0', use_sudo = need_sudo)
+    
+    if exists('/etc/sysconfig/selinux'):
+        sed('/etc/sysconfig/selinux', '^SELINUX=.*', 'SELINUX=disabled', backup='', use_sudo = need_sudo)
+    else:
+        print('WARNING: Could not find /etc/sysconfig/selinux')
 
 
 #############################################33
