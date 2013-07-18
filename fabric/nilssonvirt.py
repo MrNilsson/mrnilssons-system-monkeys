@@ -121,6 +121,11 @@ def install_libvirt_host(vm_ip_prefix='', lvm_pool='vg0', mac_prefix='52:54:00',
 
 
     ####
+    # Disable SElinux
+    disable_selinux() 
+
+
+    ####
     # Install virtualisation packages
     virt_packages = 'bridge-utils libvirt-python libvirt qemu-kvm virt-top python-virtinst tcpdump smartmontools hdparm cryptsetup-luks acpid ntp nc kpartx'
     pkg_install(virt_packages.split())
