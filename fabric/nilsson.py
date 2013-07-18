@@ -1015,7 +1015,7 @@ def customize_host_stage2(relayhost, rootalias, setup_firewall, harden_ssh):
     lock_user('root')
     pkg_upgrade()
 
-    packages = ['screen', 'man', 'vim']
+    packages = ['screen', 'man', 'vim', 'wget', 'openssh-clients', 'patch', 'rsync']
     pkg_install(packages)
 
     setup_postfix(relayhost=relayhost, rootalias=rootalias)
