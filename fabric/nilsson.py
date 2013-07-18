@@ -835,7 +835,7 @@ def setup_postfix(hostname = '', relayhost = '', networks = '', interfaces = 'lo
 
     postconf = generate_postfix_conf(myhostname=hostname, relayhost=relayhost, mynetworks=networks, inet_interfaces=interfaces)
 
-    upload_string('/etc/postfix/main.cf', postconf, use_sudo=need_sudo)
+    upload_string('/etc/postfix/main.cf', postconf, use_sudo=need_sudo, owner='root:root')
 
     if rootalias:
         set_rootalias(rootalias, reload_portfix=False)
