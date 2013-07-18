@@ -945,6 +945,11 @@ def set_timezone(tz='UTC'):
     _run('date')
 
 
+def disable_selinux():
+    need_sudo = am_not_root()
+    _run('setenforce 0', use_sudo = need_sudo)
+    sed('/etc/sysconfig/selinux', '^SELINUX=.*', 'SELINUX=disabled', backup='', use_sudo = need_sudo)
+
 
 #############################################33
 # TODO nilsification: 
