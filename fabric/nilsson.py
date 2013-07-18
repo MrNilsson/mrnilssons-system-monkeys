@@ -747,7 +747,7 @@ def pkg_install(packages, max_hours=MATADATA_MAX_HOURS, interactive=False):
         raise Exception('FATAL: Could not determine distro flavour (e.g. RedHat- or Debian-style).')
 
 
-def upload_string(filename, s, backup=True, use_sudo=False):
+def upload_string(filename, s, backup=True, use_sudo=False, owner=None):
     '''
     Put a string into a remote file
     '''
@@ -756,11 +756,15 @@ def upload_string(filename, s, backup=True, use_sudo=False):
     localfile.write(s)
     localfile.close()
 
+    if owner:
+        use_sudo=True
+
     if backup and exists(filename):
         backup_orig(filename, use_sudo=use_sudo)
 
     put(localfilename, filename, use_sudo=use_sudo)
-
+    if owner:
+        _run('chown %s %s' % (owner, filename), use_sudo=use_sudo)
 
 
 def set_rootalias(rootalias, reload_portfix=True):
