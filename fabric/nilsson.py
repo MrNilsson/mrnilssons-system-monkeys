@@ -1000,7 +1000,7 @@ def customize_host_stage1(hostname, regenerate_ssh_keys, root_keys, admin_user, 
     _run('chmod go-w /root/', use_sudo = am_not_root())
 
     # Need to install some packages even before we can do push_skeleton()
-    packages = ['wget', 'rsync', 'patch', 'screen', 'man', 'vim', 'openssh-clients']
+    packages = ['wget', 'rsync', 'patch', 'screen', 'man', 'vim']
     pkg_install(packages)
 
     # TODO: enable pushing of skel for root even when we are not root
