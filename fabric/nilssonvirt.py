@@ -339,9 +339,8 @@ def assigned_macs(echo=False):
     return macs
 
 
-VM_DEFAULT_SIZE = '10G'
 @task
-def clone_vm(original, name, size = VM_DEFAULT_SIZE, mac = None, ip = None, volume_group = 'vg0', snapshot = False):
+def clone_vm(original, name, size = None, mac = None, ip = None, volume_group = 'vg0', snapshot = False):
     '''
     Clone a VM. There is a default VM to clone.
     '''
@@ -401,6 +400,8 @@ def clone_vm(original, name, size = VM_DEFAULT_SIZE, mac = None, ip = None, volu
 
     snapshot = _boolify(snapshot)
     if snapshot:
+        if not size:
+            raise Exception('FATAL: If you want to try (untested!) snapshotting, then you have to set "size"')
         print 'WARN: Snapshotting has not yet been tested. Not active.'
         print 'Snapshotting LVM volume. Volume group=%s, original volume=%s, new volume=%s, size=%s:' % (volume_group, original, name, size)
         nilsson_run('echo lvcreate  --size %s  --name %s  --snapshot  /dev/%s/%s' % (size, name, volume_group, original), use_sudo=need_sudo)
@@ -408,7 +409,7 @@ def clone_vm(original, name, size = VM_DEFAULT_SIZE, mac = None, ip = None, volu
         print 'Cloning VM configuration %s to %s:' % (original, name) 
         nilsson_run('echo virt-clone --original=%s --name=%s %s --file=%s --preserve-data' % (original, name, mac_option, volume))
     else:
-        print 'Creating LVM volume. Volume group=%s, Name=%s, size=%s:' % (volume_group, name, size)
+        #print 'Creating LVM volume. Volume group=%s, Name=%s, size=%s:' % (volume_group, name, size)
         #nilsson_run('lvcreate  --size %s  --name %s  %s' % (size, name, volume_group), use_sudo=need_sudo)
 
         print 'Cloning VM %s to %s:' % (original, name) 
