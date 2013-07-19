@@ -341,7 +341,7 @@ def assigned_macs(echo=False):
 
 VM_DEFAULT_SIZE = '10G'
 @task
-def clone_vm(name, original = None, size = VM_DEFAULT_SIZE, mac = None, ip = None, volume_group = 'vg0', snapshot = False):
+def clone_vm(original, name, size = VM_DEFAULT_SIZE, mac = None, ip = None, volume_group = 'vg0', snapshot = False):
     '''
     Clone a VM. There is a default VM to clone.
     '''
@@ -351,7 +351,6 @@ def clone_vm(name, original = None, size = VM_DEFAULT_SIZE, mac = None, ip = Non
     volume = '/dev/' + volume_group + '/' + name
     if exists(volume):
         raise Exception('FATAL: LVM volume already exists')
-
 
     if ip and mac:
         raise Exception('FATAL: you cannot set MAC and IP')
@@ -397,9 +396,6 @@ def clone_vm(name, original = None, size = VM_DEFAULT_SIZE, mac = None, ip = Non
         mac_option = '--mac=%s' % mac
     else:
         mac_option = ''
-
-    if not original:
-        original = 'precise.dc02.dlnode.com'
 
     need_sudo = am_not_root()
 
