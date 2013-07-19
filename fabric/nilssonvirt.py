@@ -208,6 +208,7 @@ $DHCP_OPTION
     upload_string('/etc/dnsmasq.conf', dnsmasq_conf, use_sudo=need_sudo)
     upload_string('/etc/ethers', generate_ethers(vm_ip_prefix, min_octet=2, max_octet=99, mac_prefix=mac_prefix), use_sudo=need_sudo)
     nilsson_run('service dnsmasq start', use_sudo=need_sudo, warn_only=True)
+    nilsson_run('chkconfig dnsmasq on', use_sudo=need_sudo)
 
 
     ####
