@@ -961,10 +961,10 @@ def disable_selinux():
     else:
         _run('setenforce 0', use_sudo = need_sudo)
     
-    if exists('/etc/sysconfig/selinux'):
-        sed('/etc/sysconfig/selinux', '^SELINUX=.*', 'SELINUX=disabled', backup='', use_sudo = need_sudo)
+    if exists('/etc/selinux/config'):
+        sed('/etc/selinux/config', '^SELINUX=.*', 'SELINUX=disabled', backup='', use_sudo = need_sudo)
     else:
-        print('WARNING: Could not find /etc/sysconfig/selinux')
+        print('WARNING: Could not find /etc/selinux/config')
 
 
 #############################################33
