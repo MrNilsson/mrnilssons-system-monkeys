@@ -633,7 +633,7 @@ def set_hostname(hostname):
         sed('/etc/hosts', '^(127\.0\.1\.1) (.*)$', '\\1 %s \\2' % hostname, use_sudo=need_sudo)
 
     if distro_flavour() == 'redhat':
-        sed('/etc/sysconfig/network', '^HOSTNAME=.*', 'HOSTNAME=%s', use_sudo=need_sudo)
+        sed('/etc/sysconfig/network', '^HOSTNAME=.*', 'HOSTNAME=%s' % hostname, use_sudo=need_sudo)
         _run('hostname %s' % hostname, use_sudo=need_sudo)
     else:
         _run('echo %s > /etc/hostname' % hostname, use_sudo=need_sudo)
