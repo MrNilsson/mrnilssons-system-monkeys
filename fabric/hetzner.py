@@ -24,6 +24,9 @@ def main():
         # On Hetzner EX* (but not EX*0), the big partition is mounted as /home. Turn in a LVM volume group
      #  turn_mount_into_volumegroup('/home','vg0')
 
+        # Disable SElinux on CentOS
+        disable_selinux()
+
     # Nilsify the virtualisation host
     customize_host(
         admin_keys = ['nils.toedtmann','joerg.baach'], 
