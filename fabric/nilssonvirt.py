@@ -212,6 +212,12 @@ $DHCP_OPTION
 
 
     ####
+    # Allow IP forwarding
+    sed('/etc/sysctl.conf', '^net.ipv4.ip_forward.*', 'net.ipv4.ip_forward = 1', use_sudo=need_sudo, backup='.ORIG')
+    nilsson_run('sysctl -w net.ipv4.ip_forward=1', use_sudo=need_sudo)
+    
+
+    ####
     # Reset any existing iptables rules, then configure masquerading & checksum fix for DHCP
     pkg_install('iptables')
     nilsson_run('service iptables stop', use_sudo=need_sudo)
