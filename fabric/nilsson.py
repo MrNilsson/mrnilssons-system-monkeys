@@ -939,6 +939,7 @@ user root
 
     # Make rabbitmq-munin available in /etc/munin/plugins/
     _run('ln -sf /opt/rabbitmq-munin/rabbitmq_* /etc/munin/plugins', use_sudo = need_sudo)
+    _run('service munin-node restart', use_sudo = need_sudo)
 
 
 
