@@ -901,6 +901,9 @@ def setup_munin_node(allow=[]):
     conf = '/etc/munin/munin-node.conf'
     backup_orig(conf, use_sudo = need_sudo)
 
+    conf = '/etc/munin/munin-node.conf'
+    backup_orig(conf, use_sudo = need_sudo)
+
     for client_ip in allow:
         if not '/' in client_ip:
             client_ip += '/32'
@@ -908,6 +911,35 @@ def setup_munin_node(allow=[]):
         configure_ufw(rules = ['allow proto tcp from %s to any port 4949' % client_ip] )
 
     _run('service munin-node restart', use_sudo = need_sudo)
+
+
+def setup_munin_plugin_rabbitmq(vhost=None):
+    '''
+    Install and configure the RabbitMQ plugin for Munin from
+    https://github.com/ask/rabbitmq-munin
+    '''
+
+    need_sudo = am_not_root()
+    conf = '/etc/munin/munin-node.conf'
+
+    # install rabbitmq-munin into /opt/
+    pkg_install('git')
+    _run('git clone https://github.com/ask/rabbitmq-munin.git /opt/rabbitmq-munin', use_sudo = need_sudo)
+
+    # Configure munin-node to use rabbitmq-munin
+    config_string = """
+[rabbitmq_*]
+user root
+"""
+    if vhost:
+        config_string += '\nenv.vhost %s' % vhost
+
+    backup_orig(conf, use_sudo = need_sudo)
+    append(conf, config_string, use_sudo = need_sudo)
+
+    # Make rabbitmq-munin available in /etc/munin/plugins/
+    _run('ln -sf /opt/rabbitmq-munin/rabbitmq_* /etc/munin/plugins', use_sudo = need_sudo)
+
 
 
 # TODO: This is not yet idempotent!
