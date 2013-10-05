@@ -920,7 +920,7 @@ def setup_munin_plugin_rabbitmq(vhost=None):
     '''
 
     need_sudo = am_not_root()
-    conf = '/etc/munin/munin-node.conf'
+    conf = '/etc/munin/plugin-conf.d/munin-node'
 
     # install rabbitmq-munin into /opt/
     pkg_install('git')
