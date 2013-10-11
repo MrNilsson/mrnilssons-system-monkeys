@@ -666,7 +666,7 @@ def pkg_update_metadata(max_hours=MATADATA_MAX_HOURS):
         # TODO: Check age of /var/cache/apt/pkgcache.bin
         metadata='/var/cache/apt/pkgcache.bin'
         max_min = 60 * max_hours
-        if _run('find %s -cmin +%s' % (metadata, max_min)):
+        if not exists(metadata) or _run('find %s -cmin +%s' % (metadata, max_min)):
             _run('apt-get --assume-yes update', use_sudo=need_sudo)
     elif distro_flavour() == 'redhat':
         # No point as long as we dont know how to "yum install" without updating the metadata
