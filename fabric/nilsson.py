@@ -1029,70 +1029,6 @@ def disable_selinux():
 default_admin_user='admin'
 default_admin_group='adm'
 
-def customize_host_stage1(hostname, regenerate_ssh_keys, root_keys, admin_user, admin_group, admin_keys):
-    '''
-    Phase I of customization. May be run as 'root'
-    '''
-    need_sudo = am_not_root()
-
-    if not hostname or hostname == 'None':
-        hostname = env.host
-
-    set_hostname(hostname)
-    set_timezone()
-
-    if regenerate_ssh_keys:
-        regenerate_ssh_host_keys()
-
-    # Customize root account
-    for key in root_keys:
-        ssh_add_public_key(key, user='root')
-    # On some Centos installations, /root/ is 775    
-    _run('chmod go-w /root/', use_sudo = am_not_root())
-
-    # Need to install some packages even before we can do push_skeleton()
-    packages = ['wget', 'rsync', 'patch', 'screen', 'man', 'vim']
-    pkg_install(packages)
-
-    # TODO: enable pushing of skel for root even when we are not root
-    if not need_sudo:
-        push_skeleton(local_path='../files/home-skel/',remote_path='.')
-
-    allow_sudo_group()
-
-    add_posix_group(admin_group) # should already exist
-    add_posix_user(admin_user,comment='"Admin user"', primary_group=admin_group, sudo=True)
-    for key in admin_keys:
-        ssh_add_public_key(key, user=admin_user)
-
-    print 'Set new password for user "%s": ' % admin_user
-    _run('passwd %s' % admin_user, use_sudo = am_not_root())
-
-
-def customize_host_stage2(relayhost, rootalias, setup_firewall, harden_ssh):
-    '''
-    Phase II of customization. To be executed as non-root admin user
-    '''
-    # Since we will disable the root account, we must not be root!
-    if not am_not_root():
-        raise Exception('FATAL: must be not root')
-
-    # Test we can sudo before we proceed!
-    need_sudo = True
-    nilsson_run('true', use_sudo = need_sudo)
-
-    push_skeleton(local_path='../files/home-skel/', remote_path='.')
-    harden_sshd()
-    lock_user('root')
-    pkg_upgrade()
-    pkg_upgrade()
-
-    setup_postfix(relayhost=relayhost, rootalias=rootalias)
-    if setup_firewall:
-        setup_ufw(allow=['ssh'])
-
-
-
 def customize_host( context = '', hostname = None, regenerate_ssh_keys = DEFAULT_VALUE, root_keys = DEFAULT_VALUE,
                     admin_user = DEFAULT_VALUE, admin_group = DEFAULT_VALUE, admin_keys = DEFAULT_VALUE,
                     relayhost = DEFAULT_VALUE, rootalias = DEFAULT_VALUE, 
@@ -1220,15 +1156,6 @@ def customize_host( context = '', hostname = None, regenerate_ssh_keys = DEFAULT
 
         if reboot:
             nilsson_run('reboot', use_sudo = True)
-
-
-def nilsify_host( hostname = None, root_keys = ['nils.toedtmann'], admin_keys=['nils.toedtmann'], 
-    regenerate_ssh_keys = False, relayhost='', rootalias='', setup_firewall = True, harden_ssh = True):
-
-    customize_host( hostname = hostname, regenerate_ssh_keys = regenerate_ssh_keys,
-                    root_keys = root_keys, admin_keys = admin_keys,
-                    relayhost=relayhost, rootalias=rootalias, setup_firewall = setup_firewall, harden_ssh = harden_ssh)
-
 
 
 def setup_openvpn(ca_cert = '', server_sert = ''):
