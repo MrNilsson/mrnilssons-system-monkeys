@@ -698,7 +698,7 @@ def pkg_clear_cache():
         raise Exception('FATAL: Could not determine distro flavour (e.g. RedHat- or Debian-style).')
 
 
-def pkg_upgrade(max_hours=MATADATA_MAX_HOURS, interactive=False):
+def pkg_update(max_hours=MATADATA_MAX_HOURS, interactive=False, upgrade=False):
     '''
     Update system
     '''
@@ -718,13 +718,23 @@ def pkg_upgrade(max_hours=MATADATA_MAX_HOURS, interactive=False):
             options += ' --assume-yes'
             prefix_ += ' export DEBIAN_FRONTEND=noninteractive'
         with prefix(prefix_):
-            _run('apt-get %s upgrade' % options, use_sudo=need_sudo)
+            if upgrade:
+                _run('apt-get %s dist-upgrade' % options, use_sudo=need_sudo)
+            else:
+                _run('apt-get %s      upgrade' % options, use_sudo=need_sudo)
     elif distro_flavour() == 'redhat':
         if not interactive:
             options += ' --assumeyes'
-        _run('yum %s update' % options, use_sudo=need_sudo)
+        if upgrade:
+            _run('yum %s update'  % options, use_sudo=need_sudo)
+        else:
+            _run('yum %s upgrade' % options, use_sudo=need_sudo)
     else:
         raise Exception('FATAL: Could not determine distro flavour (e.g. RedHat- or Debian-style).')
+
+
+def pkg_upgrade(max_hours=MATADATA_MAX_HOURS, interactive=False):
+    pkg_update(max_hours=max_hours, interactive=interactive, upgrade = True)
 
 
 def pkg_install(packages, max_hours=MATADATA_MAX_HOURS, interactive=False):
@@ -1074,6 +1084,7 @@ def customize_host_stage2(relayhost, rootalias, setup_firewall, harden_ssh):
     push_skeleton(local_path='../files/home-skel/', remote_path='.')
     harden_sshd()
     lock_user('root')
+    pkg_upgrade()
     pkg_upgrade()
 
     setup_postfix(relayhost=relayhost, rootalias=rootalias)
