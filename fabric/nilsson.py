@@ -1089,7 +1089,8 @@ def customize_host( context = '', hostname = None, regenerate_ssh_keys = DEFAULT
 
 
     if '@' in env.host_string: 
-        print "WARNING: customize_host() will ignore the user '%s' you set in the host_string. It will use 'root' for its first, and '%s' for its second stage." % (env.user, admin_user)
+        # with settings(user='admin'): FAILS when there is an explicit user name already mentioned in host_string
+        raise RuntimeError, "FATAL: Do NOT mention a user in the host_string! This command uses 'root' for its first, and the admin_user for its second stage."
 
     if not hostname:
         if is_ip_address(env.host):
@@ -1102,7 +1103,7 @@ def customize_host( context = '', hostname = None, regenerate_ssh_keys = DEFAULT
 
     ######
     # customization stage 1 as root
-    with settings(host_string='root@%s' % (env.host)):
+    with settings(user='root'):
       # customize_host_stage1(hostname, regenerate_ssh_keys, root_keys, admin_user, admin_group, admin_keys)
 
         set_hostname(hostname)
@@ -1136,9 +1137,7 @@ def customize_host( context = '', hostname = None, regenerate_ssh_keys = DEFAULT
 
     ######
     # customization stage 2 as admin_user
-
-    # with settings(user='admin'): DOES NOT WORK when there is an explicit user name already mentioned in host_string
-    with settings(host_string='%s@%s' % (admin_user, env.host)):
+    with settings(user=admin_user):
       # customize_host_stage2(relayhost, rootalias, setup_firewall, harden_ssh)
 
         # Test we can sudo before we proceed!
