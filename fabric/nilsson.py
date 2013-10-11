@@ -43,6 +43,14 @@ def _NILSSON_DEFAULT_SHELL():
     return '/bin/bash'
 
 
+DEFAULT_VALUE='__DEFAULT_VALUE__'
+
+def set_default(var, default):
+    if var == DEFAULT_VALUE: 
+        return default
+    return var
+
+
 def _boolify(var):
     '''
     Convert any type to boolean. Just like bool(), except that the strings 
@@ -1073,16 +1081,68 @@ def customize_host_stage2(relayhost, rootalias, setup_firewall, harden_ssh):
         setup_ufw(allow=['ssh'])
 
 
-def customize_host( hostname = None, regenerate_ssh_keys = False, root_keys = [],
-                    admin_user=default_admin_user, admin_group=default_admin_group, admin_keys = [],
-                    relayhost='', rootalias='', setup_firewall = True, harden_ssh = True):
 
+def customize_host( context = '', hostname = None, regenerate_ssh_keys = DEFAULT_VALUE, root_keys = DEFAULT_VALUE,
+                    admin_user = DEFAULT_VALUE, admin_group = DEFAULT_VALUE, admin_keys = DEFAULT_VALUE,
+                    relayhost = DEFAULT_VALUE, rootalias = DEFAULT_VALUE, 
+                    setup_firewall = DEFAULT_VALUE, harden_ssh = DEFAULT_VALUE):
+
+    # Default values
+    if not context:
+        regenerate_ssh_keys = set_default(regenerate_ssh_keys, False)
+        root_keys           = set_default(root_keys, [])
+        admin_user          = set_default(admin_user, default_admin_user)
+        admin_group         = set_default(admin_group, default_admin_group)
+        admin_keys          = set_default(admin_keys, [])
+        relayhost           = set_default(relayhost, '')
+        rootalias           = set_default(rootalias, '')
+        setup_firewall      = set_default(setup_firewall, True)
+        harden_ssh          = set_default(harden_ssh, True)
+
+    if context == 'nils':
+        regenerate_ssh_keys = set_default(regenerate_ssh_keys, False)
+        root_keys           = set_default(root_keys, ['nils.toedtmann'])
+        admin_user          = set_default(admin_user, default_admin_user)
+        admin_group         = set_default(admin_group, default_admin_group)
+        admin_keys          = set_default(admin_keys, ['nils.toedtmann'])
+        relayhost           = set_default(relayhost, '')
+        rootalias           = set_default(rootalias, 'root-mail@nils.toedtmann.net')
+        setup_firewall      = set_default(setup_firewall, True)
+        harden_ssh          = set_default(harden_ssh, True)
+    
+    if context == 'dl_hetzner':
+        regenerate_ssh_keys = set_default(regenerate_ssh_keys, True)
+        root_keys           = set_default(root_keys, [])
+        admin_user          = set_default(admin_user, default_admin_user)
+        admin_group         = set_default(admin_group, default_admin_group)
+        admin_keys          = set_default(admin_keys, ['nils.toedtmann','joe.short','dan.mauger'])
+        relayhost           = set_default(relayhost, 'relay.dc02.dlnode.com')
+        rootalias           = set_default(rootalias, 'hostmaster@demandlogic.co.uk')
+        setup_firewall      = set_default(setup_firewall, True)
+        harden_ssh          = set_default(harden_ssh, True)
+    
+    if context == 'dl_rackspace':
+        regenerate_ssh_keys = set_default(regenerate_ssh_keys, False)
+        root_keys           = set_default(root_keys, [])
+        admin_user          = set_default(admin_user, default_admin_user)
+        admin_group         = set_default(admin_group, default_admin_group)
+        admin_keys          = set_default(admin_keys, ['nils.toedtmann','joe.short','dan.mauger'])
+        relayhost           = set_default(relayhost, '')
+        rootalias           = set_default(rootalias, 'hostmaster@demandlogic.co.uk')
+        setup_firewall      = set_default(setup_firewall, True)
+        harden_ssh          = set_default(harden_ssh, True)
+    
+    # Sanitize fabric string parameters
     regenerate_ssh_keys = _boolify(regenerate_ssh_keys)
     setup_firewall      = _boolify(setup_firewall)
     harden_ssh          = _boolify(harden_ssh)
     root_keys           = _listify(root_keys)
     admin_keys          = _listify(admin_keys)
-    
+
+
+    if '@' in env.host_string: 
+        print "WARNING: customize_host() will ignore the user '%s' you set in the host_string. It will use 'root' for its first, and '%s' for its second stage." % (env.user, admin_user)
+
     if not hostname:
         if is_ip_address(env.host):
             raise Exception('FATAL: you must provide a hostname, either with the fabric argument "--host", or as extra keyword argument "hostname="!')
@@ -1098,7 +1158,6 @@ def customize_host( hostname = None, regenerate_ssh_keys = False, root_keys = []
     # with settings(user='admin'): DOES NOT WORK when there is an explicit user name already mentioned in host_string
     with settings(host_string='%s@%s' % (admin_user, env.host)):
         customize_host_stage2(relayhost, rootalias, setup_firewall, harden_ssh)
-
 
 
 def nilsify_host( hostname = None, root_keys = ['nils.toedtmann'], admin_keys=['nils.toedtmann'], 
