@@ -1096,7 +1096,7 @@ def customize_host_stage2(relayhost, rootalias, setup_firewall, harden_ssh):
 def customize_host( context = '', hostname = None, regenerate_ssh_keys = DEFAULT_VALUE, root_keys = DEFAULT_VALUE,
                     admin_user = DEFAULT_VALUE, admin_group = DEFAULT_VALUE, admin_keys = DEFAULT_VALUE,
                     relayhost = DEFAULT_VALUE, rootalias = DEFAULT_VALUE, 
-                    setup_firewall = DEFAULT_VALUE, harden_ssh = DEFAULT_VALUE):
+                    setup_firewall = DEFAULT_VALUE, harden_ssh = DEFAULT_VALUE, reboot = False):
 
     # Default values
     if not context:
@@ -1149,6 +1149,7 @@ def customize_host( context = '', hostname = None, regenerate_ssh_keys = DEFAULT
     harden_ssh          = _boolify(harden_ssh)
     root_keys           = _listify(root_keys)
     admin_keys          = _listify(admin_keys)
+    reboot              = _boolify(reboot)
 
 
     if '@' in env.host_string: 
@@ -1163,12 +1164,62 @@ def customize_host( context = '', hostname = None, regenerate_ssh_keys = DEFAULT
     # Make sure the /home/ Skeletton is only writable by the owner
     local('chmod -R go-w ../files/home-skel/')
 
+    ######
+    # customization stage 1 as root
     with settings(host_string='root@%s' % (env.host)):
-        customize_host_stage1(hostname, regenerate_ssh_keys, root_keys, admin_user, admin_group, admin_keys)
+      # customize_host_stage1(hostname, regenerate_ssh_keys, root_keys, admin_user, admin_group, admin_keys)
+
+        set_hostname(hostname)
+        set_timezone()
+
+        if regenerate_ssh_keys:
+            regenerate_ssh_host_keys()
+
+        # Customize root account
+        for key in root_keys:
+            ssh_add_public_key(key, user='root')
+        # On some Centos installations, /root/ is 775    
+        _run('chmod go-w /root/', use_sudo = am_not_root())
+
+        # Need to install some packages even before we can do push_skeleton()
+        packages = ['wget', 'rsync', 'patch', 'screen', 'man', 'vim']
+        pkg_install(packages)
+
+        push_skeleton(local_path='../files/home-skel/',remote_path='.')
+
+        allow_sudo_group()
+
+        add_posix_group(admin_group) # should already exist
+        add_posix_user(admin_user,comment='"Admin user"', primary_group=admin_group, sudo=True)
+        for key in admin_keys:
+            ssh_add_public_key(key, user=admin_user)
+
+        print 'Set new password for user "%s": ' % admin_user
+        _run('passwd %s' % admin_user, use_sudo = am_not_root())
+
+
+    ######
+    # customization stage 2 as admin_user
 
     # with settings(user='admin'): DOES NOT WORK when there is an explicit user name already mentioned in host_string
     with settings(host_string='%s@%s' % (admin_user, env.host)):
-        customize_host_stage2(relayhost, rootalias, setup_firewall, harden_ssh)
+      # customize_host_stage2(relayhost, rootalias, setup_firewall, harden_ssh)
+
+        # Test we can sudo before we proceed!
+        nilsson_run('true', use_sudo = True)
+
+        push_skeleton(local_path='../files/home-skel/', remote_path='.')
+        harden_sshd()
+        lock_user('root')
+        pkg_upgrade()
+        pkg_upgrade()
+
+        setup_postfix(relayhost=relayhost, rootalias=rootalias)
+        if setup_firewall:
+            setup_ufw(allow=['ssh'])
+
+        if reboot:
+            nilsson_run('reboot', use_sudo = True)
 
 
 def nilsify_host( hostname = None, root_keys = ['nils.toedtmann'], admin_keys=['nils.toedtmann'], 
