@@ -1034,6 +1034,9 @@ def customize_host( context = '', hostname = None, regenerate_ssh_keys = DEFAULT
                     relayhost = DEFAULT_VALUE, rootalias = DEFAULT_VALUE, 
                     setup_firewall = DEFAULT_VALUE, harden_ssh = DEFAULT_VALUE, reboot = False):
 
+    route_prefix = ''
+    route_via    = ''
+
     # Default values
     if not context:
         regenerate_ssh_keys = set_default(regenerate_ssh_keys, False)
@@ -1078,6 +1081,9 @@ def customize_host( context = '', hostname = None, regenerate_ssh_keys = DEFAULT
         rootalias           = set_default(rootalias, 'hostmaster@demandlogic.co.uk')
         setup_firewall      = set_default(setup_firewall, True)
         harden_ssh          = set_default(harden_ssh, True)
+        route_prefix        = '172.29.0.0/16'
+        route_via           = '172.29.16.1'
+
     
     # Sanitize fabric string parameters
     regenerate_ssh_keys = _boolify(regenerate_ssh_keys)
@@ -1153,8 +1159,22 @@ def customize_host( context = '', hostname = None, regenerate_ssh_keys = DEFAULT
         if setup_firewall:
             setup_ufw(allow=['ssh'])
 
+        if route_prefix:
+            add_static_route(route_prefix, route_via)
+
         if reboot:
             nilsson_run('reboot', use_sudo = True)
+
+
+def add_static_route(route_prefix, route_via):
+
+    if not distro_flavour() == 'debian':
+        raise RuntimeError, "ERROR: Do not know yet how to add static routes for other Linux distros than Debian."
+
+    need_sudo = am_not_root()
+    route = 'ip route add %s via %s' % (route_prefix, route_via)
+    append('/etc/network/interfaces', '    post-up %s' % route, use_sudo=am_not_root())
+    nilsson_run(route, use_sudo = True)
 
 
 def setup_openvpn(ca_cert = '', server_sert = ''):
