@@ -1177,6 +1177,33 @@ def add_static_route(route_prefix, route_via):
     nilsson_run(route, use_sudo = True)
 
 
+def add_rackspace_monitoring_agent(username = None, apikey = None):
+    if not nilsson_run('lsb_release --id --short') == 'Ubuntu': 
+        raise RuntimeError, "ERROR: Currently the only Linux distribution i know how to install the rackspace-monitoring-agent on is Ubuntu"
+
+    need_sudo = am_not_root()
+    
+    release  = nilsson_run('lsb_release --release --short')
+    repo_url = 'http://stable.packages.cloudmonitoring.rackspace.com/ubuntu-%s-x86_64' % release
+    repo_key = 'https://monitoring.api.rackspacecloud.com/pki/agent/linux.asc'
+
+    need_sudo = am_not_root()
+    append('/etc/apt/sources.list.d/rackspace-monitoring-agent.list', 'deb %s cloudmonitoring main' % repo_url, use_sudo=need_sudo)
+    nilsson_run('curl %s | apt-key add -' % repo_key, use_sudo = need_sudo)
+
+    pkg_install('rackspace-monitoring-agent', max_hours=0)
+
+    if not username or not apikey:
+        print "WARNING: username or API key missing, not configuring the rackspace-monitoring-agent. Proceed manually: "
+        print " "
+        print "    sudo rackspace-monitoring-agent --setup"
+        print " "
+        return
+
+    nilsson_run('rackspace-monitoring-agent --setup --username %s --apikey %s' % (username, apikey), use_sudo = need_sudo)
+    nilsson_run('service rackspace-monitoring-agent start', use_sudo = need_sudo)
+
+
 def setup_openvpn(ca_cert = '', server_sert = ''):
     '''
     Setup a OpenVPN service
