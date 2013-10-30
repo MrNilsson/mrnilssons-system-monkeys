@@ -29,6 +29,7 @@ from random import randint, choice
 from urllib2 import urlopen
 from string import Template
 from socket import gethostbyname
+import os.path
 
 
 # Some global definitions
@@ -192,6 +193,21 @@ def test_nilsson_run():
     nilsson_run('ls -l /etc/shadow3')
     print 'We never get here'
 
+
+def show_diff(filename1, filename2, use_sudo=False):
+    '''
+    diff files, but don't fuss if the diff binary is missing
+    '''
+    diffbin = '/usr/bin/diff'
+    if not exists(diffbin):
+        print "Cannot diff, binary %s is missing."
+        return
+
+    diff = _run('diff %s %s || true' % (filename1, filename2), use_sudo=use_sudo)
+    print '============ Begin diff %s vs %s =============' % (filename1, filename2)
+    print diff
+    print '============== End diff %s vs %s =============' % (filename1, filename2)
+    
 
 def backup_orig(filename, suffix='.ORIG', use_sudo=False):
     backup = filename + suffix
@@ -555,10 +571,7 @@ def allow_sudo_group(group=None, nopasswd=False, force=False, dry_run=False):
     _run('cp -a %s %s' % (SUDOERS, SUDOERS_TMP), use_sudo=need_sudo)
     append(SUDOERS_TMP, add_line, use_sudo=need_sudo)
 
-    diff = _run('diff %s %s || true' % (SUDOERS, SUDOERS_TMP), use_sudo=need_sudo)
-    print '============ Begin diff %s =============' % SUDOERS
-    print diff
-    print '============== End diff %s =============' % SUDOERS
+    show_diff(SUDOERS, SUDOERS_TMP, use_sudo=need_sudo)
 
     with settings(warn_only=True):
         if _run('visudo -c -f %s' % SUDOERS_TMP, use_sudo=need_sudo).failed:
@@ -573,6 +586,7 @@ def allow_sudo_group(group=None, nopasswd=False, force=False, dry_run=False):
         _run('mv %s %s' % (SUDOERS_TMP, SUDOERS), use_sudo=need_sudo)
 
     return
+
 
 
 # Stolen from myself
@@ -605,10 +619,7 @@ def harden_sshd():
     sed(config_tmp, '^[ \\t#]*(PermitRootLogin)[ \\t]+[yn][eo].*',        '\\1 no', backup='', use_sudo=need_sudo)
     sed(config_tmp, '^[ \\t#]*(PasswordAuthentication)[ \\t]+[yn][eo].*', '\\1 no', backup='', use_sudo=need_sudo)
 
-    diff = _run('diff %s %s || true' % (config, config_tmp), use_sudo=need_sudo) 
-    print '============ Begin diff %s =============' % config
-    print diff
-    print '============== End diff %s =============' % config
+    show_diff(config, config_tmp, use_sudo=need_sudo)
 
     with settings(warn_only=True):
         if _run('sshd -t -f %s' % config_tmp, use_sudo=need_sudo).failed:
@@ -1018,6 +1029,10 @@ def disable_selinux():
         print('WARNING: Could not find /etc/selinux/config')
 
 
+def reboot():
+    _run('reboot', use_sudo = am_not_root())
+
+
 #############################################33
 # TODO nilsification: 
 #   Bug: when call as 'admin', the root key is appended again
@@ -1204,11 +1219,71 @@ def add_rackspace_monitoring_agent(username = None, apikey = None):
     nilsson_run('service rackspace-monitoring-agent start', use_sudo = need_sudo)
 
 
-def setup_openvpn(ca_cert = '', server_sert = ''):
+def setup_openvpn_client(vpn_server, key_dir = '', ca = 'ca.crt', cert = '', key = '', tls_auth = None, cipher = None):
+    '''
+    Setup a OpenVPN client
+    '''
+    need_sudo = am_not_root()
+
+    ovpn_dir        = '/etc/openvpn'
+    config          = ovpn_dir + '/' + vpn_server + '.conf' 
+    sample_config   = '/usr/share/doc/openvpn/examples/sample-config-files/client.conf'
+
+    if exists(config):
+        print "VPN tunnel config file %s already exists on remote side. Exiting without doing anything." % config
+        return
+
+    if key_dir and not os.path.exists(key_dir):
+        print "Cannot find keydir '%s'" % key_dir
+        raise RuntimeError, 'ERROR: Cannot find keydir'
+
+    local_files  = { 'ca': ca, 'cert': cert, 'key': key }
+    remote_files = {}
+
+    if tls_auth: 
+        local_files['tls-auth'] = tls_auth
+
+    for f in local_files.keys():
+        if key_dir and local_files[f] and not local_files[f][0] == '/':
+            local_files[f] = key_dir + '/' + local_files[f]
+            remote_files[f] = os.path.basename(local_files[f])
+        if not os.path.isfile(local_files[f]):
+            print "Cannot find %s: '%s'" % (f, local_files[f])
+            raise RuntimeError, 'Certificate or Key missing'
+
+    pkg_install('openvpn')
+
+    if not exists(sample_config):
+        print "Cannot find sample config %s on remote side" % sample_config
+        raise RuntimeError, 'ERROR: Cannot find sample config'
+
+    print "Copying certs and keys to remote side:"
+    for f in local_files.keys():
+        put(local_files[f], ovpn_dir +'/' + remote_files[f], use_sudo=need_sudo)    
+
+    print "Creating OpenVPN configuration:"
+    _run('cp %s %s' % (sample_config, config), use_sudo=need_sudo)
+    sed(config, '^remote .*$',   'remote %s 1194' % vpn_server,               backup='', use_sudo=need_sudo)
+    sed(config, '^ca .*$',       'ca %s'          % remote_files['ca'],       backup='', use_sudo=need_sudo)
+    sed(config, '^cert .*$',     'cert %s'        % remote_files['cert'],     backup='', use_sudo=need_sudo)
+    sed(config, '^key .*$',      'key %s'         % remote_files['key'],      backup='', use_sudo=need_sudo)
+    sed(config, '^;tls-auth .*$','tls-auth %s 1'  % remote_files['tls-auth'], backup='', use_sudo=need_sudo)
+    sed(config, '^;cipher .*$',  'cipher %s'      % cipher,                   backup='', use_sudo=need_sudo)
+
+    print "Difference between sample config and our config:"
+    show_diff(sample_config, config)
+
+    print "Starting new VPN tunnel"
+    _run('service openvpn start %s' % vpn_server, use_sudo=need_sudo)
+
+
+def setup_openvpn_server(ca_cert = '', cert = ''):
     '''
     Setup a OpenVPN service
     '''
     need_sudo = am_not_root()
+
+    raise RuntimeError, "ERROR: This method is not yet implemented"
 
     # TODO:
     # Install openvpn
@@ -1219,8 +1294,10 @@ def setup_openvpn(ca_cert = '', server_sert = ''):
     uncomment('/etc/sysctl.conf', 'net.ipv4.ip_forward=1', backup='.ORIG', use_sudo=need_sudo)
     _run('/sbin/sysctl -p ', use_sudo=need_sudo)
 
-    # No firewalling!
-    _run('ufw disable', use_sudo = need_sudo)
+    # TODO ufw: 
+    # * Set default policy for FORWARD chain to ACCEPT
+    # * Allow incoming UDP/1194
+    # _run('ufw ...', use_sudo = need_sudo)
 
 
 # @task
