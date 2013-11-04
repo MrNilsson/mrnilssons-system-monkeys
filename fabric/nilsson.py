@@ -1046,7 +1046,7 @@ default_admin_group='adm'
 
 def customize_host( context = '', hostname = None, regenerate_ssh_keys = DEFAULT_VALUE, root_keys = DEFAULT_VALUE,
                     admin_user = DEFAULT_VALUE, admin_group = DEFAULT_VALUE, admin_keys = DEFAULT_VALUE,
-                    relayhost = DEFAULT_VALUE, rootalias = DEFAULT_VALUE, 
+                    relayhost = DEFAULT_VALUE, rootalias = DEFAULT_VALUE, setup_postfix = True,
                     setup_firewall = DEFAULT_VALUE, harden_ssh = DEFAULT_VALUE, reboot = False):
 
     route_prefix = ''
@@ -1092,16 +1092,28 @@ def customize_host( context = '', hostname = None, regenerate_ssh_keys = DEFAULT
         admin_user          = set_default(admin_user, default_admin_user)
         admin_group         = set_default(admin_group, default_admin_group)
         admin_keys          = set_default(admin_keys, ['nils.toedtmann','joe.short','dan.mauger'])
-        relayhost           = set_default(relayhost, '')
+        relayhost           = set_default(relayhost, 'smtp.dc03.dlnode.com')
         rootalias           = set_default(rootalias, 'hostmaster@demandlogic.co.uk')
         setup_firewall      = set_default(setup_firewall, True)
         harden_ssh          = set_default(harden_ssh, True)
         route_prefix        = '172.29.0.0/16'
         route_via           = '172.29.16.1'
 
-    
+    if context == 'dl_alix':
+        regenerate_ssh_keys = set_default(regenerate_ssh_keys, False)
+        root_keys           = set_default(root_keys, [])
+        admin_user          = set_default(admin_user, default_admin_user)
+        admin_group         = set_default(admin_group, default_admin_group)
+        admin_keys          = set_default(admin_keys, ['nils.toedtmann','joe.short','dan.mauger'])
+        relayhost           = set_default(relayhost, 'smtp.dc03.dlnode.com')
+        rootalias           = set_default(rootalias, 'hostmaster@demandlogic.co.uk')
+        setup_firewall      = set_default(setup_firewall, True)
+        harden_ssh          = set_default(harden_ssh, True)
+
+
     # Sanitize fabric string parameters
     regenerate_ssh_keys = _boolify(regenerate_ssh_keys)
+    setup_postfix       = _boolify(setup_postfix)
     setup_firewall      = _boolify(setup_firewall)
     harden_ssh          = _boolify(harden_ssh)
     root_keys           = _listify(root_keys)
@@ -1170,7 +1182,9 @@ def customize_host( context = '', hostname = None, regenerate_ssh_keys = DEFAULT
         pkg_upgrade()
         pkg_upgrade()
 
-        setup_postfix(relayhost=relayhost, rootalias=rootalias)
+        if setup_postfix:
+            setup_postfix(relayhost=relayhost, rootalias=rootalias)
+
         if setup_firewall:
             setup_ufw(allow=['ssh'])
 
