@@ -1,0 +1,32 @@
+    server_name wstest;
+
+    access_log  /var/log/nginx/wstest.log combined_vhost;
+    error_log   /var/log/nginx/wstest.error.log;
+
+    auth_basic_user_file htpasswd-test;
+
+    root /var/www/wstest; 
+    
+    error_page 500 502 503 504  /error/50x.html;
+
+    location    /__websocket_noauth__       { 
+        proxy_pass          http://localhost:8080 ; 
+        proxy_http_version  1.1;
+        proxy_set_header    Upgrade $http_upgrade;
+        proxy_set_header    Connection "Upgrade";
+      # proxy_set_header    Host $host;
+    }
+
+    location    /__websocket_auth__       { 
+        auth_basic  "Welcome to our WebSocket auth test (username=password=test)";
+        proxy_pass          http://localhost:8080 ; 
+        proxy_http_version  1.1;
+        proxy_set_header    Upgrade $http_upgrade;
+        proxy_set_header    Connection "Upgrade";
+      # proxy_set_header    Host $host;
+    }
+
+    location    /wstest {   
+        auth_basic  "Welcome to our WebSocket auth test (username=password=test)";
+    }
+    

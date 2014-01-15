@@ -1,0 +1,12 @@
+server {
+    listen      80;
+    include     /etc/nginx/sites-available/wstest.common;
+}
+    
+server {
+    listen      443;
+    ssl         on;
+    include     /etc/nginx/sites-available/wstest.common;
+}
+    
+
