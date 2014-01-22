@@ -2,7 +2,7 @@
 
 import subprocess as sub
 import re
-
+import os
 
 def run_command(cmd):
     p = sub.Popen(cmd,stdout=sub.PIPE,stderr=sub.PIPE)
@@ -82,11 +82,28 @@ def os_info():
     info['os_distribution'] = run_command('/usr/bin/lsb_release --id      --short'.split())[0].rstrip('\n')
     info['os_version']      = run_command('/usr/bin/lsb_release --release --short'.split())[0].rstrip('\n')
 
+
+    motd_voyage = '/etc/motd.voyage'
+    motd_tail   = '/etc/motd.tail'
+ 
+    if os.path.isfile(motd_voyage):
+        info['os_flavour'] = 'Voyage'
+
+        if os.path.isfile(motd_tail):
+            motd = motd_tail
+        else:
+            motd = motd_voyage
+        banner = open(motd, 'r').read()
+        info['os_flavour_version'] = find_option('.* Version:', banner)
+
     return info
 
 
 def mac_address(dev):
-    return open('/sys/class/net/%s/address' % dev).read().split('\n')[0]
+    address_file = '/sys/class/net/%s/address' % dev
+    
+    if os.path.isfile(address_file):
+        return open(address_file).read().split('\n')[0]
 
 
 def ipv4_address(dev):
@@ -99,6 +116,17 @@ def hardware_info():
     info = {}
    
     info['mac_eth0'] = mac_address('eth0')
+
+    #grep -i alix /var/log/dmesg 
+    #[    1.424425] alix: system is recognized as "PC Engines ALIX.2 v0.99h"
+
+    dmesg = open('/var/log/dmesg', 'r').read()
+    alix = find_option('[ \t\[\]0-9\.]*alix:', dmesg)
+
+    if alix:
+        info['board_manufacturer'] = 'PC Engines'
+        info['board_model'] = 'ALIX'
+        info['board_model_detail'] = alix.split('"')[1]
 
     return info
 
