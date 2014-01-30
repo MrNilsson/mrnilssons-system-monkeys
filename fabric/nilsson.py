@@ -1046,7 +1046,7 @@ default_admin_group='adm'
 
 def customize_host( context = '', hostname = None, regenerate_ssh_keys = DEFAULT_VALUE, root_keys = DEFAULT_VALUE,
                     admin_user = DEFAULT_VALUE, admin_group = DEFAULT_VALUE, admin_keys = DEFAULT_VALUE,
-                    relayhost = DEFAULT_VALUE, rootalias = DEFAULT_VALUE, setup_postfix = True,
+                    relayhost = DEFAULT_VALUE, rootalias = DEFAULT_VALUE, setup_mta = True,
                     setup_firewall = DEFAULT_VALUE, harden_ssh = DEFAULT_VALUE, reboot = False):
 
     route_prefix = ''
@@ -1113,7 +1113,7 @@ def customize_host( context = '', hostname = None, regenerate_ssh_keys = DEFAULT
 
     # Sanitize fabric string parameters
     regenerate_ssh_keys = _boolify(regenerate_ssh_keys)
-    setup_postfix       = _boolify(setup_postfix)
+    setup_mta           = _boolify(setup_mta)
     setup_firewall      = _boolify(setup_firewall)
     harden_ssh          = _boolify(harden_ssh)
     root_keys           = _listify(root_keys)
@@ -1182,7 +1182,7 @@ def customize_host( context = '', hostname = None, regenerate_ssh_keys = DEFAULT
         pkg_upgrade()
         pkg_upgrade()
 
-        if setup_postfix:
+        if setup_mta:
             setup_postfix(relayhost=relayhost, rootalias=rootalias)
 
         if setup_firewall:
