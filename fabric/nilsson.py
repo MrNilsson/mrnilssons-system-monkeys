@@ -245,6 +245,37 @@ def patch_file(filename, patchfilename, use_sudo=False, backup='.ORIG'):
         _run('rm %s' % rejectname, use_sudo=use_sudo)
 
 
+#@task
+def ipv4_addresses(prefix = False, all = True, flat = False, lo = False, show = False):
+    
+    # TODO: implement this, and make "all=False" the default
+    if not all:
+        raise Exception("all=True (only show IP addresses of interfaces that are UP) is not yet implemented")
+
+    if prefix:
+        ipv4_match = r'^ *inet ([0-9\./]*) .*$'
+    else:
+        ipv4_match = r'^ *inet ([0-9\.]*)/.*$'
+
+    interfaces = run('ls /sys/class/net/').split()
+    if not lo and 'lo' in interfaces:
+        interfaces.remove('lo')
+
+    ipv4_addr = {}
+    for dev in interfaces:
+        ipv4_addr[dev] = []
+        for inet_line in run('ip addr show %s | grep "^ *inet "' % dev ).split('\n'):
+            ipv4_addr[dev].append( sub(ipv4_match, r'\1', inet_line) )
+ 
+    if flat:
+        ipv4_addr = [addr for dev in ipv4_addr.keys() for addr in  ipv4_addr[dev] ]
+
+    if show:
+        print ipv4_addr
+
+    return ipv4_addr
+
+
 def regenerate_ssh_host_keys(hostname=None, remove_old_keys_from_local_known_hosts=True):
     need_sudo = am_not_root()
 
