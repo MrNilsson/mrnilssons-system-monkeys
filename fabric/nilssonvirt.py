@@ -252,11 +252,12 @@ $DHCP_OPTION
     ####
     # Download distro images
     for image_url in [
-        'http://old-releases.ubuntu.com/releases/precise/ubuntu-12.04.1-alternate-amd64.iso',
-        'http://old-releases.ubuntu.com/releases/precise/ubuntu-12.04.1-server-amd64.iso',
-        'http://cdimage.debian.org/debian-cd/7.1.0/amd64/iso-cd/debian-7.1.0-amd64-netinst.iso',
-        'http://download.fedoraproject.org/pub/fedora/linux/releases/19/Live/x86_64/Fedora-Live-Desktop-x86_64-19-1.iso',
-        'http://ftp.tu-chemnitz.de/pub/linux/centos/6.4/isos/x86_64/CentOS-6.4-x86_64-minimal.iso'
+        'http://releases.ubuntu.com/trusty/ubuntu-14.04-server-amd64.iso',
+        'http://old-releases.ubuntu.com/releases/precise/ubuntu-12.04.3-server-amd64.iso',
+        'http://old-releases.ubuntu.com/releases/precise/ubuntu-12.04.3-alternate-amd64.iso',
+        'http://cdimage.debian.org/debian-cd/7.5.0/amd64/iso-cd/debian-7.5.0-amd64-netinst.iso',
+        'http://download.fedoraproject.org/pub/fedora/linux/releases/20/Fedora/x86_64/iso/Fedora-20-x86_64-netinst.iso',
+        'http://ftp.tu-chemnitz.de/pub/linux/centos/6.5/isos/x86_64/CentOS-6.5-x86_64-minimal.iso'
     ]: 
         nilsson_run('wget -c --progress=dot -P /var/lib/libvirt/images/ %s' % image_url, use_sudo=need_sudo)
 
