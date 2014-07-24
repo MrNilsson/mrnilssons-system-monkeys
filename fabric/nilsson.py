@@ -622,7 +622,7 @@ def allow_sudo_group(group=None, nopasswd=False, force=False, dry_run=False):
 
 # Stolen from myself
 #   https://bitbucket.org/okfn/sysadmin/src/2f318bcc67fa01d78204f12e07f30fa5955a893c/bin/fabfile.py#cl-451
-def harden_sshd():
+def harden_sshd(root_without_password = False):
     '''
     Disables root login and password based login via ssh.
     '''
@@ -630,6 +630,8 @@ def harden_sshd():
     # * Disallow setting of locale
     # * UseDNS no
     # * Revert if success not confirmed after X seconds
+
+    root_without_password = _boolify(root_without_password)
 
     config     = '/etc/ssh/sshd_config'
     config_tmp = '%s.new-%s' % (config, randint(10000,100000))
@@ -647,8 +649,14 @@ def harden_sshd():
 
     _run('cp -a %s %s' % (config, config_tmp), use_sudo=need_sudo)
 
-    sed(config_tmp, '^[ \\t#]*(PermitRootLogin)[ \\t]+[yn][eo].*',        '\\1 no', backup='', use_sudo=need_sudo)
-    sed(config_tmp, '^[ \\t#]*(PasswordAuthentication)[ \\t]+[yn][eo].*', '\\1 no', backup='', use_sudo=need_sudo)
+    if root_without_password:
+        PermitRootLogin = 'without-password'
+    else:
+        PermitRootLogin = 'no'
+
+    sed(config_tmp, '^[ \\t#]*(PermitRootLogin)[ \\t]+[ynw][eoi].*',        '\\1 %s' % PermitRootLogin, backup='', use_sudo=need_sudo)
+    sed(config_tmp, '^[ \\t#]*(PasswordAuthentication)[ \\t]+[yn][eo].*', '\\1 no'                  , backup='', use_sudo=need_sudo)
+    append(config_tmp, '\nUseDNS no', use_sudo=need_sudo)
 
     show_diff(config, config_tmp, use_sudo=need_sudo)
 
@@ -1082,6 +1090,7 @@ def customize_host( context = '', hostname = None, regenerate_ssh_keys = DEFAULT
 
     route_prefix = ''
     route_via    = ''
+    root_without_password = False
 
     # Default values
     if not context:
@@ -1140,6 +1149,7 @@ def customize_host( context = '', hostname = None, regenerate_ssh_keys = DEFAULT
         rootalias           = set_default(rootalias, 'hostmaster@demandlogic.co.uk')
         setup_firewall      = set_default(setup_firewall, True)
         harden_ssh          = set_default(harden_ssh, True)
+        root_without_password = True
 
 
     # Sanitize fabric string parameters
@@ -1150,7 +1160,7 @@ def customize_host( context = '', hostname = None, regenerate_ssh_keys = DEFAULT
     root_keys           = _listify(root_keys)
     admin_keys          = _listify(admin_keys)
     reboot              = _boolify(reboot)
-
+    
 
     if '@' in env.host_string: 
         # with settings(user='admin'): FAILS when there is an explicit user name already mentioned in host_string
@@ -1208,7 +1218,7 @@ def customize_host( context = '', hostname = None, regenerate_ssh_keys = DEFAULT
         nilsson_run('true', use_sudo = True)
 
         push_skeleton(local_path='../files/home-skel/', remote_path='.')
-        harden_sshd()
+        harden_sshd(root_without_password = root_without_password)
         lock_user('root')
         pkg_upgrade()
         pkg_upgrade()
