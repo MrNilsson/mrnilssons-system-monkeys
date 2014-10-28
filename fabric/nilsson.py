@@ -756,22 +756,22 @@ def pkg_update(max_hours=MATADATA_MAX_HOURS, interactive=False, upgrade=False):
 
     max_hours   = _integrify(max_hours)
     interactive = _boolify(interactive)
+    upgrade     = _boolify(upgrade)
 
     pkg_update_metadata(max_hours)
 
     need_sudo = am_not_root()
 
     options = ''
-    prefix_ = ''
+    env_ = ''
     if distro_flavour() == 'debian':
         if not interactive:
             options += ' --assume-yes'
-            prefix_ += ' export DEBIAN_FRONTEND=noninteractive'
-        with prefix(prefix_):
-            if upgrade:
-                _run('apt-get %s dist-upgrade' % options, use_sudo=need_sudo)
-            else:
-                _run('apt-get %s      upgrade' % options, use_sudo=need_sudo)
+            env_ += ' DEBIAN_FRONTEND=noninteractive'
+        if upgrade:
+            _run('%s apt-get %s dist-upgrade' % (env_, options), use_sudo=need_sudo)
+        else:
+            _run('%s apt-get %s      upgrade' % (env_, options), use_sudo=need_sudo)
     elif distro_flavour() == 'redhat':
         if not interactive:
             options += ' --assumeyes'
@@ -811,6 +811,36 @@ def pkg_install(packages, max_hours=MATADATA_MAX_HOURS, interactive=False):
         if not interactive:
             options += ' --assumeyes'
         _run('yum %s install %s' % (options, packages), use_sudo=need_sudo)
+    else:
+        raise Exception('FATAL: Could not determine distro flavour (e.g. RedHat- or Debian-style).')
+
+
+def pkg_autoremove(max_hours=MATADATA_MAX_HOURS, interactive=False):
+    '''
+    Update system
+    '''
+    # TODO: no progress bars in yum
+
+    max_hours   = _integrify(max_hours)
+    interactive = _boolify(interactive)
+
+    pkg_update_metadata(max_hours)
+
+    need_sudo = am_not_root()
+
+    options = ''
+    env_ = ''
+    if distro_flavour() == 'debian':
+        if not interactive:
+            options += ' --assume-yes'
+            env_ += ' DEBIAN_FRONTEND=noninteractive'
+        _run('%s apt-get %s  autoremove' % (env_, options), use_sudo=need_sudo)
+    elif distro_flavour() == 'redhat':
+        if not interactive:
+            options += ' --assumeyes'
+        # _run('yum %s YUM-EQUIVALENT-TO-AUTOREMOVE'  % options, use_sudo=need_sudo)
+        raise Exception('FATAL: pkg_autoremove() not yet implemented to RedHat-flavour.')
+
     else:
         raise Exception('FATAL: Could not determine distro flavour (e.g. RedHat- or Debian-style).')
 
@@ -1144,7 +1174,7 @@ def customize_host( context = '', hostname = None, regenerate_ssh_keys = DEFAULT
         root_keys           = set_default(root_keys, [])
         admin_user          = set_default(admin_user, default_admin_user)
         admin_group         = set_default(admin_group, default_admin_group)
-        admin_keys          = set_default(admin_keys, ['nils.toedtmann','joe.short','dan.mauger','mike.darby@pillinger'])
+        admin_keys          = set_default(admin_keys, ['nils.toedtmann','joe.short','dan.mauger','mike.darby'])
         relayhost           = set_default(relayhost, 'smtp.dlnode.com')
         rootalias           = set_default(rootalias, 'hostmaster@demandlogic.co.uk')
         setup_firewall      = set_default(setup_firewall, True)
