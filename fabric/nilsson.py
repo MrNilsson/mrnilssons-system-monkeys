@@ -1224,6 +1224,9 @@ def customize_host( context = '', hostname = None, regenerate_ssh_keys = DEFAULT
 
         # Need to install some packages even before we can do push_skeleton()
         packages = ['wget', 'rsync', 'patch', 'screen', 'man', 'vim']
+
+        # Force update of package metadata 
+        pkg_update_metadata(max_hours=0)
         pkg_install(packages)
 
         push_skeleton(local_path='../files/home-skel/',remote_path='.')
