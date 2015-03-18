@@ -1116,7 +1116,7 @@ default_admin_group='adm'
 def customize_host( context = '', hostname = None, regenerate_ssh_keys = DEFAULT_VALUE, root_keys = DEFAULT_VALUE,
                     admin_user = DEFAULT_VALUE, admin_group = DEFAULT_VALUE, admin_keys = DEFAULT_VALUE,
                     relayhost = DEFAULT_VALUE, rootalias = DEFAULT_VALUE, setup_mta = True,
-                    setup_firewall = DEFAULT_VALUE, harden_ssh = DEFAULT_VALUE, reboot = False):
+                    setup_firewall = DEFAULT_VALUE, harden_ssh = DEFAULT_VALUE, reboot = False, use_env_password=True):
 
     route_prefix = ''
     route_via    = ''
@@ -1239,7 +1239,12 @@ def customize_host( context = '', hostname = None, regenerate_ssh_keys = DEFAULT
             ssh_add_public_key(key, user=admin_user)
 
         print 'Set new password for user "%s": ' % admin_user
-        _run('passwd %s' % admin_user, use_sudo = am_not_root())
+
+        if use_env_password and env.password:
+            # TODO: Make safer by calculating the hash locally with python, and then use 'chpasswd -e'
+            _run('echo "%s:%s" | chpasswd' % (admin_user, env.password), use_sudo = am_not_root())
+        else:
+            _run('passwd %s' % admin_user, use_sudo = am_not_root())
 
 
     ######
