@@ -710,6 +710,16 @@ def set_hostname(hostname):
     # TODO: reload MTA
 
 
+def remountrw():
+    need_sudo = am_not_root()
+    _run('remountrw', use_sudo=need_sudo)
+
+
+def remountro():
+    need_sudo = am_not_root()
+    _run('remountro', use_sudo=need_sudo)
+
+
 MATADATA_MAX_HOURS = 12
 def pkg_update_metadata(max_hours=MATADATA_MAX_HOURS):
     '''
