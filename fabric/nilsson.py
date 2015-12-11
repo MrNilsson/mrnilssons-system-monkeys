@@ -31,6 +31,10 @@ from string import Template
 from socket import gethostbyname
 import os.path
 
+# Activate when debugging SSH/Paramiko issues
+#import logging
+#logging.basicConfig(level=logging.DEBUG)
+
 
 # Some global definitions
 def _NILSSON_FLAVOUR_SUDO_GROUPS():
