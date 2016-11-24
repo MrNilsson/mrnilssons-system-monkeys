@@ -1130,7 +1130,8 @@ default_admin_group='adm'
 def customize_host( context = '', hostname = None, regenerate_ssh_keys = DEFAULT_VALUE, root_keys = DEFAULT_VALUE,
                     admin_user = DEFAULT_VALUE, admin_group = DEFAULT_VALUE, admin_keys = DEFAULT_VALUE,
                     relayhost = DEFAULT_VALUE, rootalias = DEFAULT_VALUE, setup_mta = True,
-                    setup_firewall = DEFAULT_VALUE, harden_ssh = DEFAULT_VALUE, reboot = False, use_env_password=True):
+                    setup_firewall = DEFAULT_VALUE, harden_ssh = DEFAULT_VALUE, reboot = False, use_env_password=True,
+                    upgrade = True):
 
     route_prefix = ''
     route_via    = ''
@@ -1194,6 +1195,7 @@ def customize_host( context = '', hostname = None, regenerate_ssh_keys = DEFAULT
         setup_firewall      = set_default(setup_firewall, True)
         harden_ssh          = set_default(harden_ssh, True)
         root_without_password = True
+        upgrade             = False
 
 
     # Sanitize fabric string parameters
@@ -1272,8 +1274,8 @@ def customize_host( context = '', hostname = None, regenerate_ssh_keys = DEFAULT
         push_skeleton(local_path='../files/home-skel/', remote_path='.')
         harden_sshd(root_without_password = root_without_password)
         lock_user('root')
-        pkg_upgrade()
-        pkg_upgrade()
+        pkg_update(upgrade=upgrade)
+        pkg_update(upgrade=upgrade)
 
         if setup_mta:
             setup_postfix(relayhost=relayhost, rootalias=rootalias)
